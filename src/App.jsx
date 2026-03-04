@@ -889,7 +889,7 @@ Only use spices from provided list. Prioritize health.${veggies.length>0?" Provi
       <Background dark={dark}/>
 
       <div style={{minHeight:"100vh",padding:"24px 14px 80px",position:"relative",zIndex:1,fontFamily:"'Plus Jakarta Sans',sans-serif",color:t.textPrimary,transition:"color 0.4s"}}>
-        <div style={{maxWidth:900,margin:"0 auto",width:"100%"}}>
+        <div style={{maxWidth:1200,margin:"0 auto",width:"100%"}}>
 
           {/* ── TOP BAR: tabs + dark toggle — always visible ── */}
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:24,flexWrap:"wrap",gap:10}}>
