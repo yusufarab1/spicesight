@@ -137,24 +137,23 @@ function DarkToggle({ dark, onToggle }) {
   const t = dark ? T.dark : T.light;
   return (
     <button onClick={onToggle} style={{
-      display:"flex",alignItems:"center",gap:8,
-      background:dark?"rgba(22,18,16,0.9)":"rgba(255,255,255,0.9)",
-      border:`1.5px solid ${t.cardBorder}`,
-      borderRadius:99,padding:"9px 18px",cursor:"pointer",
+      display:"flex",alignItems:"center",gap:7,
+      background:"transparent",
+      border:"none",
+      borderRadius:99,padding:"10px 16px",cursor:"pointer",
       fontFamily:"'Plus Jakarta Sans',sans-serif",fontSize:14,fontWeight:700,
-      color:t.textSecondary,
-      boxShadow:t.shadow,
+      color:t.textMuted,
       transition:"all 0.3s ease",
-      backdropFilter:"blur(12px)",
       letterSpacing:0.3,
+      whiteSpace:"nowrap",
     }}
-    onMouseEnter={e=>{e.currentTarget.style.borderColor=t.accent;e.currentTarget.style.color=t.accent;e.currentTarget.style.boxShadow=`0 4px 20px ${t.accent}33`;}}
-    onMouseLeave={e=>{e.currentTarget.style.borderColor=t.cardBorder;e.currentTarget.style.color=t.textSecondary;e.currentTarget.style.boxShadow=t.shadow;}}
+    onMouseEnter={e=>{e.currentTarget.style.color=t.accent;}}
+    onMouseLeave={e=>{e.currentTarget.style.color=t.textMuted;}}
     >
-      <span style={{fontSize:18,transition:"transform 0.4s",transform:dark?"rotate(180deg)":"rotate(0deg)",display:"inline-block"}}>
+      <span style={{fontSize:16,transition:"transform 0.4s",transform:dark?"rotate(180deg)":"rotate(0deg)",display:"inline-block"}}>
         {dark ? "☀️" : "🌙"}
       </span>
-      <span>{dark ? "Light Mode" : "Dark Mode"}</span>
+      <span>{dark ? "Light" : "Dark"}</span>
     </button>
   );
 }
@@ -892,8 +891,8 @@ Only use spices from provided list. Prioritize health.${veggies.length>0?" Provi
         <div style={{maxWidth:1200,margin:"0 auto",width:"100%"}}>
 
           {/* ── TOP BAR: tabs + dark toggle — always visible ── */}
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:24,flexWrap:"wrap",gap:10}}>
-            <div style={{display:"flex",background:dark?"rgba(22,18,16,0.9)":"rgba(255,255,255,0.9)",border:`1.5px solid ${t.cardBorder}`,borderRadius:99,padding:5,gap:4,boxShadow:t.shadow,backdropFilter:"blur(12px)"}}>
+          <div style={{display:"flex",justifyContent:"center",alignItems:"center",marginBottom:24}}>
+            <div style={{display:"flex",alignItems:"center",background:dark?"rgba(22,18,16,0.9)":"rgba(255,255,255,0.9)",border:`1.5px solid ${t.cardBorder}`,borderRadius:99,padding:5,gap:4,boxShadow:t.shadow,backdropFilter:"blur(12px)"}}>
               {[{id:"create",icon:"✦",label:"New Recipe"},{id:"library",icon:"📚",label:`My Recipes${favorites.length>0?` (${favorites.length})`:""}`}].map(tab=>{
                 const active=activeTab===tab.id;
                 return (
@@ -902,8 +901,9 @@ Only use spices from provided list. Prioritize health.${veggies.length>0?" Provi
                   </button>
                 );
               })}
+              <div style={{width:"1.5px",height:24,background:t.cardBorder,margin:"0 4px",flexShrink:0}}/>
+              <DarkToggle dark={dark} onToggle={()=>setDark(d=>!d)}/>
             </div>
-            <DarkToggle dark={dark} onToggle={()=>setDark(d=>!d)}/>
           </div>
           {/* ── LIBRARY VIEW ── */}
           {activeTab==="library"&&(
