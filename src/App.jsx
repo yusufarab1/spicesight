@@ -181,18 +181,18 @@ function StepHeader({ number, title, icon, t }) {
 function WarmTag({ label, onRemove, color, bg, t, bounce }) {
   const [h,setH]=useState(false);
   return (
-    <span onMouseEnter={()=>setH(true)} onMouseLeave={()=>setH(false)} style={{
+    <span onClick={onRemove} onMouseEnter={()=>setH(true)} onMouseLeave={()=>setH(false)} style={{
       display:"inline-flex",alignItems:"center",gap:7,
       background:h?color:bg,
       border:`1.5px solid ${h?color:color+"66"}`,
       color:h?"#fff":color,borderRadius:99,padding:"6px 14px",
       fontSize:14,fontFamily:"'Plus Jakarta Sans',sans-serif",fontWeight:600,
-      transition:"all 0.2s",cursor:"default",
+      transition:"all 0.2s",cursor:"pointer",
       boxShadow:h?`0 4px 14px ${color}44`:"none",
       animation:bounce?"tagBounce 0.45s cubic-bezier(0.34,1.56,0.64,1) both":"none",
     }}>
       {label}
-      <button onClick={onRemove} style={{background:"none",border:"none",color:h?"rgba(255,255,255,0.8)":color+"88",cursor:"pointer",fontSize:18,lineHeight:1,padding:0,marginLeft:2}}>×</button>
+      <span style={{color:h?"rgba(255,255,255,0.8)":color+"88",fontSize:16,lineHeight:1,marginLeft:2}}>×</span>
     </span>
   );
 }
@@ -577,6 +577,174 @@ function CookingSteps({ steps, t }) {
   );
 }
 
+// ─── Shopping List Modal ──────────────────────────────────────────────────────
+function ShoppingList({ result, meatLabel, veggies, servings, dark, t, onClose }) {
+  const [checked, setChecked] = useState({});
+  const [copied, setCopied] = useState(false);
+
+  const toggle = key => setChecked(p=>({...p,[key]:!p[key]}));
+
+  const sections = [
+    {
+      title:"🥩 Protein",
+      color:"#c8440c",
+      items:[{name:meatLabel, amount:`for ${servings} ${servings===1?"person":"people"}`}]
+    },
+    {
+      title:"🌶 Spices & Seasonings",
+      color:dark?"#f0c040":"#c8840c",
+      items:(result.spice_mix||[]).map(s=>({name:s.spice, amount:s.amount}))
+    },
+    ...(veggies.length>0?[{
+      title:"🥦 Vegetables",
+      color:dark?"#52d468":"#2d7a3a",
+      items:veggies.map(v=>({name:v, amount:"as needed"}))
+    }]:[]),
+  ];
+
+  function copyList() {
+    const lines = [
+      `🛒 Shopping List — ${result.recipe_name}`,
+      `Serves ${servings} ${servings===1?"person":"people"}`,
+      "",
+      ...sections.flatMap(s=>[
+        s.title,
+        ...s.items.map(i=>`  • ${i.amount} ${i.name}`),
+        ""
+      ]),
+      "Made with SpiceSight ✨"
+    ].join("\n");
+    navigator.clipboard.writeText(lines).then(()=>{
+      setCopied(true);
+      setTimeout(()=>setCopied(false), 2500);
+    }).catch(()=>{});
+  }
+
+  const totalItems = sections.reduce((a,s)=>a+s.items.length,0);
+  const checkedCount = Object.values(checked).filter(Boolean).length;
+
+  return (
+    <div style={{
+      position:"fixed",inset:0,zIndex:9999,
+      background:"rgba(0,0,0,0.6)",backdropFilter:"blur(6px)",
+      display:"flex",alignItems:"flex-end",justifyContent:"center",
+      animation:"fadeUp 0.2s ease both",
+    }} onClick={onClose}>
+      <div onClick={e=>e.stopPropagation()} style={{
+        width:"100%",maxWidth:600,maxHeight:"85vh",
+        background:dark?"#161b24":"#fff",
+        borderRadius:"24px 24px 0 0",
+        boxShadow:"0 -8px 48px rgba(0,0,0,0.4)",
+        display:"flex",flexDirection:"column",
+        overflow:"hidden",
+        animation:"slideInUp 0.35s cubic-bezier(0.34,1.56,0.64,1) both",
+      }}>
+        {/* Header */}
+        <div style={{
+          padding:"20px 24px 16px",
+          borderBottom:`1.5px solid ${t.cardBorder}`,
+          display:"flex",alignItems:"center",justifyContent:"space-between",
+          flexShrink:0,
+        }}>
+          <div>
+            <p style={{fontFamily:"'Playfair Display',serif",fontSize:22,fontWeight:900,color:t.textPrimary,marginBottom:4}}>🛒 Shopping List</p>
+            <p style={{fontSize:13,color:t.textMuted,fontWeight:600}}>{result.recipe_name} · {checkedCount}/{totalItems} items</p>
+          </div>
+          <div style={{display:"flex",gap:10,alignItems:"center"}}>
+            <button onClick={copyList} style={{
+              background:copied?"#2d7a3a":t.accentBg,border:`1.5px solid ${copied?"#2d7a3a":t.accent}`,
+              borderRadius:99,padding:"8px 16px",cursor:"pointer",
+              fontFamily:"'Plus Jakarta Sans',sans-serif",fontSize:13,fontWeight:700,
+              color:copied?"#fff":t.accent,transition:"all 0.2s",
+            }}>
+              {copied?"✓ Copied!":"📋 Copy"}
+            </button>
+            <button onClick={onClose} style={{
+              width:36,height:36,borderRadius:"50%",border:`1.5px solid ${t.cardBorder}`,
+              background:t.mutedBg,cursor:"pointer",fontSize:18,color:t.textMuted,
+              display:"flex",alignItems:"center",justifyContent:"center",
+            }}>×</button>
+          </div>
+        </div>
+
+        {/* Progress bar */}
+        <div style={{height:4,background:t.cardBorder,flexShrink:0}}>
+          <div style={{
+            height:"100%",
+            width:`${totalItems>0?(checkedCount/totalItems)*100:0}%`,
+            background:`linear-gradient(90deg,${t.accent},${t.accentLight})`,
+            transition:"width 0.4s cubic-bezier(0.34,1.56,0.64,1)",
+          }}/>
+        </div>
+
+        {/* Items */}
+        <div style={{overflowY:"auto",padding:"16px 24px 32px",flex:1}}>
+          {sections.map((section,si)=>(
+            <div key={si} style={{marginBottom:24}}>
+              <p style={{fontSize:12,letterSpacing:2,fontWeight:800,color:section.color,textTransform:"uppercase",marginBottom:12,fontFamily:"'Plus Jakarta Sans',sans-serif"}}>{section.title}</p>
+              <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                {section.items.map((item,ii)=>{
+                  const key=`${si}-${ii}`;
+                  const done=!!checked[key];
+                  const affiliateTag = "spicesight-20"; // replace with your Amazon affiliate tag
+                  const amazonUrl = `https://www.amazon.com/s?k=${encodeURIComponent(item.name+"+spice")}&tag=${affiliateTag}`;
+                  return (
+                    <div key={key} style={{
+                      display:"flex",alignItems:"center",gap:14,
+                      padding:"14px 16px",borderRadius:14,
+                      background:done?`${section.color}10`:t.inputBg,
+                      border:`1.5px solid ${done?section.color:t.cardBorder}`,
+                      transition:"all 0.2s",
+                      opacity:done?0.6:1,
+                    }}>
+                      <div onClick={()=>toggle(key)} style={{
+                        width:24,height:24,borderRadius:"50%",flexShrink:0,cursor:"pointer",
+                        border:`2px solid ${done?section.color:t.cardBorder}`,
+                        background:done?section.color:"transparent",
+                        display:"flex",alignItems:"center",justifyContent:"center",
+                        transition:"all 0.2s",
+                      }}>
+                        {done&&<span style={{fontSize:13,color:"#fff",fontWeight:900}}>✓</span>}
+                      </div>
+                      <div onClick={()=>toggle(key)} style={{flex:1,cursor:"pointer"}}>
+                        <p style={{fontSize:15,fontWeight:700,color:t.textPrimary,textDecoration:done?"line-through":"none",transition:"all 0.2s"}}>{item.name}</p>
+                        <p style={{fontSize:12,color:t.textMuted,fontWeight:500,marginTop:2}}>{item.amount}</p>
+                      </div>
+                      <a href={amazonUrl} target="_blank" rel="noopener noreferrer"
+                        onClick={e=>e.stopPropagation()}
+                        style={{
+                          display:"flex",alignItems:"center",gap:5,
+                          background:"#ff9900",border:"none",borderRadius:99,
+                          padding:"6px 12px",cursor:"pointer",textDecoration:"none",
+                          fontFamily:"'Plus Jakarta Sans',sans-serif",fontSize:12,fontWeight:700,
+                          color:"#fff",flexShrink:0,
+                          boxShadow:"0 2px 8px rgba(255,153,0,0.4)",
+                          transition:"all 0.2s",
+                        }}
+                        onMouseEnter={e=>e.currentTarget.style.transform="scale(1.05)"}
+                        onMouseLeave={e=>e.currentTarget.style.transform="scale(1)"}
+                      >
+                        🛍 Buy
+                      </a>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+          {checkedCount===totalItems&&totalItems>0&&(
+            <div style={{textAlign:"center",padding:"20px 0"}}>
+              <div style={{fontSize:48,marginBottom:8}}>🎉</div>
+              <p style={{fontFamily:"'Playfair Display',serif",fontSize:20,fontWeight:700,color:"#2d7a3a"}}>All items checked!</p>
+              <p style={{fontSize:14,color:t.textMuted,marginTop:4}}>Time to cook! 👨‍🍳</p>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Main App ─────────────────────────────────────────────────────────────────
 export default function SpiceSight() {
   const [dark,          setDark]          = useState(false);
@@ -609,6 +777,8 @@ export default function SpiceSight() {
   const [servings,      setServings]      = useState(2);
   const [libSearch,     setLibSearch]     = useState("");
   const [shareToast,    setShareToast]    = useState(false);
+  const [showShoppingList, setShowShoppingList] = useState(false);
+  const [checkedItems,  setCheckedItems]  = useState({});
 
   // ─── Step refs for auto-advance ───────────────────────────────────────────
   const refMethod   = useRef(null);
@@ -852,6 +1022,7 @@ Only use spices from provided list. Prioritize health.${veggies.length>0?" Provi
         @keyframes shimmerGold{0%{background-position:-200% 0}100%{background-position:200% 0}}
         @keyframes modeSlide{from{opacity:0;transform:translateX(20px)}to{opacity:1;transform:translateX(0)}}
         @keyframes chefJump{0%,100%{transform:translateY(0) rotate(-1deg)}30%{transform:translateY(-20px) rotate(2deg)}60%{transform:translateY(-26px) rotate(-2deg)}80%{transform:translateY(-14px) rotate(1deg)}}
+        @keyframes slideInUp{from{opacity:0;transform:translateY(100%)}to{opacity:1;transform:translateY(0)}}
         @keyframes chefBounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
         @keyframes chefWobble{0%,100%{transform:rotate(0deg) translateY(0)}25%{transform:rotate(-7deg) translateY(2px)}75%{transform:rotate(7deg) translateY(2px)}}
         @keyframes chefBlink{0%,88%,100%{transform:scaleY(1)}92%,96%{transform:scaleY(0.08)}}
@@ -1671,7 +1842,7 @@ Only use spices from provided list. Prioritize health.${veggies.length>0?" Provi
               )}
 
               {/* Action row */}
-              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginTop:4}}>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10,marginTop:4}}>
                 <button onClick={goBack} style={{
                   background:t.cardBg,border:`2px solid ${t.cardBorder}`,borderRadius:14,
                   padding:"15px",color:t.textSecondary,cursor:"pointer",
@@ -1692,6 +1863,18 @@ Only use spices from provided list. Prioritize health.${veggies.length>0?" Provi
                 onMouseLeave={e=>{e.currentTarget.style.borderColor=t.cardBorder;e.currentTarget.style.color=t.textSecondary;e.currentTarget.style.boxShadow=t.shadow;}}>
                   🔄 Regenerate
                 </button>
+                <button onClick={()=>{setShowShoppingList(true);setCheckedItems({});}} style={{
+                  background:t.cardBg,border:`2px solid ${t.cardBorder}`,borderRadius:14,
+                  padding:"15px",color:t.textSecondary,cursor:"pointer",
+                  fontFamily:"'Playfair Display',serif",fontSize:16,fontWeight:700,
+                  transition:"all 0.25s",boxShadow:t.shadow,
+                }}
+                onMouseEnter={e=>{e.currentTarget.style.borderColor="#2d7a3a";e.currentTarget.style.color="#2d7a3a";e.currentTarget.style.boxShadow=`0 4px 20px #2d7a3a33`;}}
+                onMouseLeave={e=>{e.currentTarget.style.borderColor=t.cardBorder;e.currentTarget.style.color=t.textSecondary;e.currentTarget.style.boxShadow=t.shadow;}}>
+                  🛒 Shopping List
+                </button>
+              </div>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginTop:10}}>
                 <button onClick={shareRecipe} style={{
                   background:t.cardBg,border:`2px solid ${t.cardBorder}`,borderRadius:14,
                   padding:"15px",color:t.textSecondary,cursor:"pointer",
@@ -1720,6 +1903,19 @@ Only use spices from provided list. Prioritize health.${veggies.length>0?" Provi
             </div>
           )}
           </>}
+
+          {/* ── SHOPPING LIST MODAL ── */}
+          {showShoppingList&&result&&(
+            <ShoppingList
+              result={result}
+              meatLabel={meatLabel}
+              veggies={veggies}
+              servings={servings}
+              dark={dark}
+              t={t}
+              onClose={()=>setShowShoppingList(false)}
+            />
+          )}
 
           {/* ── TOAST ── */}
           {savedToast&&(
