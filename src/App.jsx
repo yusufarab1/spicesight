@@ -577,6 +577,68 @@ function CookingSteps({ steps, t }) {
   );
 }
 
+// ─── Nutrition Card ───────────────────────────────────────────────────────────
+function NutritionCard({ nutrition, servings, dark, t }) {
+  if(!nutrition) return null;
+  const macros = [
+    { label:"Calories",  value:nutrition.calories, unit:"kcal", color:"#ff7a2e", max:800,  icon:"🔥" },
+    { label:"Protein",   value:nutrition.protein,  unit:"g",    color:"#4a90d9", max:60,   icon:"💪" },
+    { label:"Carbs",     value:nutrition.carbs,    unit:"g",    color:"#f0c040", max:100,  icon:"🌾" },
+    { label:"Fat",       value:nutrition.fat,      unit:"g",    color:"#e87050", max:60,   icon:"🥑" },
+    { label:"Fiber",     value:nutrition.fiber,    unit:"g",    color:"#52d468", max:30,   icon:"🌿" },
+  ];
+  return (
+    <div style={{marginTop:4}}>
+      <p style={{fontSize:12,color:t.textFaint,fontFamily:"'Plus Jakarta Sans',sans-serif",fontWeight:600,marginBottom:16,letterSpacing:0.3}}>
+        Per serving · {servings} {servings===1?"person":"people"} total
+      </p>
+      {/* Calories hero */}
+      <div style={{
+        background:dark?"linear-gradient(135deg,#1e1408,#1a1208)":"linear-gradient(135deg,#fff4ee,#fef0e4)",
+        border:`2px solid #ff7a2e44`,borderRadius:16,padding:"18px 20px",
+        display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14,
+      }}>
+        <div style={{display:"flex",alignItems:"center",gap:12}}>
+          <span style={{fontSize:32}}>🔥</span>
+          <div>
+            <p style={{fontFamily:"'Playfair Display',serif",fontSize:36,fontWeight:900,color:"#ff7a2e",lineHeight:1}}>{nutrition.calories}</p>
+            <p style={{fontSize:12,color:t.textMuted,fontWeight:600,letterSpacing:1}}>CALORIES PER SERVING</p>
+          </div>
+        </div>
+        <div style={{textAlign:"right"}}>
+          <p style={{fontSize:13,color:t.textMuted,fontWeight:600}}>{Math.round(nutrition.calories*servings)} kcal</p>
+          <p style={{fontSize:11,color:t.textFaint}}>total for {servings}</p>
+        </div>
+      </div>
+      {/* Macro bars */}
+      <div style={{display:"flex",flexDirection:"column",gap:10}}>
+        {macros.slice(1).map((m,i)=>{
+          const pct = Math.min((m.value/m.max)*100, 100);
+          return (
+            <div key={i} style={{background:t.inputBg,border:`1.5px solid ${t.cardBorder}`,borderRadius:12,padding:"12px 16px"}}>
+              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}>
+                <div style={{display:"flex",alignItems:"center",gap:8}}>
+                  <span style={{fontSize:16}}>{m.icon}</span>
+                  <span style={{fontSize:14,fontWeight:700,color:t.textPrimary,fontFamily:"'Plus Jakarta Sans',sans-serif"}}>{m.label}</span>
+                </div>
+                <span style={{fontFamily:"'Playfair Display',serif",fontSize:18,fontWeight:900,color:m.color}}>{m.value}<span style={{fontSize:12,color:t.textMuted,fontWeight:600}}> {m.unit}</span></span>
+              </div>
+              <div style={{height:6,background:t.cardBorder,borderRadius:99,overflow:"hidden"}}>
+                <div style={{
+                  height:"100%",width:`${pct}%`,borderRadius:99,
+                  background:`linear-gradient(90deg,${m.color}aa,${m.color})`,
+                  boxShadow:`0 0 8px ${m.color}55`,
+                  transition:"width 0.8s cubic-bezier(0.34,1.56,0.64,1)",
+                }}/>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 // ─── Shopping List Modal ──────────────────────────────────────────────────────
 function ShoppingList({ result, meatLabel, veggies, servings, dark, t, onClose }) {
   const [checked, setChecked] = useState({});
@@ -932,14 +994,14 @@ Available spices: ${spices.join(", ")}${veggieNote}${flavorNote}
 Servings: ${servings} people — scale all ingredient amounts accordingly.
 Based ONLY on these spices, decide the best protein and cooking method to create the healthiest, most delicious meal possible.
 Return ONLY valid JSON:
-{"recipe_name":"Creative name","chosen_protein":"e.g. Chicken Thighs","chosen_method":"e.g. Pan-Fry","ai_reasoning":"2 sentences explaining WHY you chose this protein and method based on the spices.","health_score":85,"health_notes":"2 sentences about health benefits.","spice_mix":[{"spice":"name","amount":"1 tsp","role":"role in 5 words"}],"marinate_time":"30 minutes","cooking_instructions":["Step 1","Step 2","Step 3","Step 4","Step 5"]${veggieJsonField},"pro_tip":"One chef tip.","flavor_profile":"e.g. Smoky & Earthy"}
+{"recipe_name":"Creative name","chosen_protein":"e.g. Chicken Thighs","chosen_method":"e.g. Pan-Fry","ai_reasoning":"2 sentences explaining WHY you chose this protein and method based on the spices.","health_score":85,"health_notes":"2 sentences about health benefits.","nutrition":{"calories":420,"protein":38,"carbs":12,"fat":18,"fiber":4},"spice_mix":[{"spice":"name","amount":"1 tsp","role":"role in 5 words"}],"marinate_time":"30 minutes","cooking_instructions":["Step 1","Step 2","Step 3","Step 4","Step 5"]${veggieJsonField},"pro_tip":"One chef tip.","flavor_profile":"e.g. Smoky & Earthy"}
 Only use spices from the provided list. Prioritize health and flavor synergy.${veggies.length>0?" Provide detailed veggie prep.":""}`;
     } else {
       prompt=`You are an expert culinary nutritionist and chef. Season ${meatLabel} using ${selectedMethod==="custom"?customMethod:selectedMethod} method.${allMeatLabels.length>1?` This is a multi-protein dish combining ${meatLabel} — create a unified recipe that works for all.`:""}
 Available spices: ${spices.join(", ")}${veggieNote}${flavorNote}
 Servings: ${servings} people — scale all ingredient amounts accordingly.
 Return ONLY valid JSON:
-{"recipe_name":"Creative name","health_score":85,"health_notes":"2 sentences about health benefits.","spice_mix":[{"spice":"name","amount":"1 tsp","role":"role in 5 words"}],"marinate_time":"30 minutes","cooking_instructions":["Step 1","Step 2","Step 3","Step 4","Step 5"]${veggieJsonField},"pro_tip":"One chef tip.","flavor_profile":"e.g. Smoky & Earthy"}
+{"recipe_name":"Creative name","health_score":85,"health_notes":"2 sentences about health benefits.","nutrition":{"calories":420,"protein":38,"carbs":12,"fat":18,"fiber":4},"spice_mix":[{"spice":"name","amount":"1 tsp","role":"role in 5 words"}],"marinate_time":"30 minutes","cooking_instructions":["Step 1","Step 2","Step 3","Step 4","Step 5"]${veggieJsonField},"pro_tip":"One chef tip.","flavor_profile":"e.g. Smoky & Earthy"}
 Only use spices from provided list. Prioritize health.${veggies.length>0?" Provide detailed veggie prep.":""}${allMeatLabels.length>1?" Acknowledge the multi-protein combination in the recipe name.":""}`;
     }
     try {
@@ -1746,6 +1808,15 @@ Only use spices from provided list. Prioritize health.${veggies.length>0?" Provi
                 <div style={{background:t.mutedBg,border:`1.5px solid ${t.cardBorder}`,borderRadius:12,padding:"16px 18px",marginTop:18}}>
                   <p style={{fontSize:15,color:t.textPrimary,lineHeight:1.8,fontWeight:500}}>{result.health_notes}</p>
                 </div>
+                {result.nutrition&&(
+                  <div style={{marginTop:22}}>
+                    <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:14}}>
+                      <span style={{fontSize:18}}>📊</span>
+                      <p style={{fontSize:16,fontFamily:"'Playfair Display',serif",fontWeight:700,color:t.textPrimary}}>Nutrition Breakdown</p>
+                    </div>
+                    <NutritionCard nutrition={result.nutrition} servings={servings} dark={dark} t={t}/>
+                  </div>
+                )}
               </div>
 
               {/* Spice mix */}
