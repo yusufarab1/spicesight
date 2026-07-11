@@ -1022,14 +1022,26 @@ Return ONLY valid JSON:
 Only use spices from provided list. Prioritize health.${veggies.length>0?" Provide detailed veggie prep.":""}${allMeatLabels.length>1?" Acknowledge the multi-protein combination in the recipe name.":""}`;
     }
     try {
-      const res=await fetch("/api/generate",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:1600,messages:[{role:"user",content:prompt}]})});
+      const res=await fetch("/api/generate",{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({prompt}),
+      });
       const data=await res.json();
-      const raw=data.content?.map(b=>b.text||"").join("")||"";
-      const parsed=JSON.parse(raw.match(/\{[\s\S]*\}/)[0]);
+
+      if(!res.ok) throw new Error(data?.error||`Request failed (${res.status})`);
+
+      const raw = data.text || "";
+      const match = raw.match(/\{[\s\S]*\}/);
+      if(!match) throw new Error("The AI returned an unexpected format. Try again.");
+
+      const parsed = JSON.parse(match[0]);
       setResult(parsed);
       setScreen("results");
       window.scrollTo({top:0,behavior:"instant"});
-    } catch {setError("Something went wrong. Please try again.");}
+    } catch(err) {
+      setError(err.message||"Something went wrong. Please try again.");
+    }
     finally{setLoading(false);}
   }
 
