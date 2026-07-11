@@ -884,14 +884,30 @@ export default function SpiceSight() {
   }, []);
 
   // Load favorites from persistent storage on mount
+  // Works in both Claude.ai (window.storage) and production (localStorage)
   useEffect(()=>{
     (async()=>{
       try {
-        const res = await window.storage.get("spicesight-favorites");
-        if(res?.value) setFavorites(JSON.parse(res.value));
+        if(typeof window.storage !== "undefined") {
+          const res = await window.storage.get("spicesight-favorites");
+          if(res?.value) setFavorites(JSON.parse(res.value));
+        } else {
+          const raw = localStorage.getItem("spicesight-favorites");
+          if(raw) setFavorites(JSON.parse(raw));
+        }
       } catch {}
     })();
   },[]);
+
+  async function persistFavorites(updated) {
+    try {
+      if(typeof window.storage !== "undefined") {
+        await window.storage.set("spicesight-favorites", JSON.stringify(updated));
+      } else {
+        localStorage.setItem("spicesight-favorites", JSON.stringify(updated));
+      }
+    } catch {}
+  }
 
   // Reset isSaved when result changes
   useEffect(()=>{ setIsSaved(false); },[result]);
@@ -906,6 +922,7 @@ export default function SpiceSight() {
       method: methodLabel,
       spices:[...spices],
       veggies:[...veggies],
+      servings,
       ...result,
     };
     const updated = [entry, ...favorites];
@@ -913,14 +930,14 @@ export default function SpiceSight() {
     setIsSaved(true);
     setSavedToast(true);
     setTimeout(()=>setSavedToast(false), 2800);
-    try { await window.storage.set("spicesight-favorites", JSON.stringify(updated)); } catch {}
+    persistFavorites(updated);
   }
 
   async function deleteFavorite(id) {
     const updated = favorites.filter(f=>f.id!==id);
     setFavorites(updated);
     if(expandedFav===id) setExpandedFav(null);
-    try { await window.storage.set("spicesight-favorites", JSON.stringify(updated)); } catch {}
+    persistFavorites(updated);
   }
 
   useEffect(()=>{
