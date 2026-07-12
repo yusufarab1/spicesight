@@ -16,7 +16,7 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'No prompt provided' });
   }
 
-  const MODEL = 'gemini-2.5-flash';
+  const MODEL = 'gemini-3-flash-preview';
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${apiKey}`;
 
   try {
