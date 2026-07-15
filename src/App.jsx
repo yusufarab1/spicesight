@@ -1471,7 +1471,7 @@ Only use spices from provided list. Prioritize health.${veggies.length>0?" Provi
                 })}
               </div>
               <input
-                value={customMeat} onChange={e=>setCustomMeat(e.target.value)}
+                value={customMeat} maxLength={40} onChange={e=>setCustomMeat(e.target.value)}
                 onFocus={()=>{}}
                 placeholder="✏  Or type any other meat..."
                 style={inputStyle}
@@ -1481,8 +1481,13 @@ Only use spices from provided list. Prioritize health.${veggies.length>0?" Provi
                 <div style={{marginTop:14,display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:10}}>
                   <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
                     {allMeatLabels.map((l,i)=>{
-                      const mc=MEATS.find(m=>m.label===l)?.color||t.accent;
-                      return <span key={i} style={{background:`${mc}18`,border:`1.5px solid ${mc}55`,borderRadius:99,padding:"5px 14px",fontSize:13,color:mc,fontWeight:700}}>✓ {l}</span>;
+                      const meatObj=MEATS.find(m=>m.label===l);
+                      const mc=meatObj?.color||t.accent;
+                      const remove=()=>{
+                        if(meatObj) setSelectedMeats(p=>p.filter(x=>x!==meatObj.id));
+                        else setCustomMeat("");
+                      };
+                      return <span key={i} onClick={remove} title="Tap to remove" style={{background:`${mc}18`,border:`1.5px solid ${mc}55`,borderRadius:99,padding:"5px 14px",fontSize:13,color:mc,fontWeight:700,cursor:"pointer",display:"inline-flex",alignItems:"center",gap:5}}>✓ {l}<span style={{opacity:0.55,fontSize:14}}>×</span></span>;
                     })}
                   </div>
                   <button onClick={()=>scrollToStep(refMethod,0)} style={{
@@ -1536,7 +1541,7 @@ Only use spices from provided list. Prioritize health.${veggies.length>0?" Provi
                 }}>✏ Other</button>
               </div>
               {selectedMethod==="custom"&&(
-                <input value={customMethod} onChange={e=>setCustomMethod(e.target.value)} placeholder="e.g. Sous vide, Steaming, Deep fry..." style={{...inputStyle,marginTop:14}} autoFocus/>
+                <input value={customMethod} maxLength={40} onChange={e=>setCustomMethod(e.target.value)} placeholder="e.g. Sous vide, Steaming, Deep fry..." style={{...inputStyle,marginTop:14}} autoFocus/>
               )}
             </div>
 
@@ -1575,7 +1580,7 @@ Only use spices from provided list. Prioritize health.${veggies.length>0?" Provi
                 {spices.map(s=>(
                   <WarmTag key={s} label={s} color={t.spiceColor} bg={t.spiceBg} t={t} bounce={bouncingTag===s} onRemove={()=>setSpices(p=>p.filter(x=>x!==s))}/>
                 ))}
-                <input value={spiceInput} onChange={e=>setSpiceInput(e.target.value)} onKeyDown={onSpiceKey}
+                <input value={spiceInput} maxLength={40} onChange={e=>setSpiceInput(e.target.value)} onKeyDown={onSpiceKey}
                   onBlur={()=>{if(spiceInput.trim()){addSpice(spiceInput);setSpiceInput("");}}}
                   placeholder={spices.length===0?"Type a spice & press Enter to add...":"Add more spices..."}
                   style={{flex:"1 1 160px",background:"none",border:"none",outline:"none",color:dark?t.textPrimary:t.spiceColor,fontFamily:"'Plus Jakarta Sans',sans-serif",fontSize:15,minWidth:140,fontWeight:500}}/>
@@ -1632,7 +1637,7 @@ Only use spices from provided list. Prioritize health.${veggies.length>0?" Provi
                 {veggies.map(v=>(
                   <WarmTag key={v} label={v} color={t.vegColor} bg={t.vegBg} t={t} onRemove={()=>setVeggies(p=>p.filter(x=>x!==v))}/>
                 ))}
-                <input value={veggieInput} onChange={e=>setVeggieInput(e.target.value)} onKeyDown={onVeggieKey}
+                <input value={veggieInput} maxLength={40} onChange={e=>setVeggieInput(e.target.value)} onKeyDown={onVeggieKey}
                   onBlur={()=>{if(veggieInput.trim()){addVeggie(veggieInput);setVeggieInput("");}}}
                   placeholder={veggies.length===0?"Type a veggie & press Enter...":"Add more veggies..."}
                   style={{flex:"1 1 160px",background:"none",border:"none",outline:"none",color:dark?t.textPrimary:t.vegColor,fontFamily:"'Plus Jakarta Sans',sans-serif",fontSize:15,minWidth:140,fontWeight:500}}/>
