@@ -1,4 +1,14 @@
 import { useState, useRef, useEffect } from "react";
+import { createClient } from "@supabase/supabase-js";
+
+// ─── Supabase ─────────────────────────────────────────────────────────────────
+// These two values are SAFE to have in frontend code (unlike the Gemini key):
+// they're designed to be public. Data security comes from Row Level Security
+// rules in the database, not from hiding these.
+const SUPABASE_URL = "https://rvubqpalotjqbtwrifhn.supabase.co/rest/v1/";
+const SUPABASE_ANON_KEY = "sb_publishable_H4QHaNUJxg9oVFPs7xnahg_nltUwi-i";
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
 
 // ─── Data ─────────────────────────────────────────────────────────────────────
 const MEATS = [
@@ -805,6 +815,97 @@ function ShoppingList({ result, meatLabel, veggies, servings, dark, t, onClose }
   );
 }
 
+// ─── Auth Modal ───────────────────────────────────────────────────────────────
+function AuthModal({ dark, t, onClose, onAuth }) {
+  const [mode, setMode] = useState("signin"); // signin | signup
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+
+  async function submit() {
+    if(!email.trim()||!password) { setErr("Enter your email and password."); return; }
+    setBusy(true); setErr("");
+    try {
+      const fn = mode==="signup"
+        ? supabase.auth.signUp({ email:email.trim(), password })
+        : supabase.auth.signInWithPassword({ email:email.trim(), password });
+      const { data, error } = await fn;
+      if(error) throw error;
+      if(data?.user) { onAuth(data.user); onClose(); }
+    } catch(e) {
+      setErr(e.message||"Something went wrong.");
+    } finally { setBusy(false); }
+  }
+
+  const fieldStyle = {
+    width:"100%",background:t.inputBg,border:`2px solid ${t.inputBorder}`,
+    borderRadius:12,padding:"13px 16px",color:t.textPrimary,
+    fontFamily:"'Plus Jakarta Sans',sans-serif",fontSize:16,fontWeight:500,
+    outline:"none",boxSizing:"border-box",
+  };
+
+  return (
+    <div style={{
+      position:"fixed",inset:0,zIndex:9999,
+      background:"rgba(0,0,0,0.6)",backdropFilter:"blur(6px)",
+      display:"flex",alignItems:"center",justifyContent:"center",padding:20,
+      animation:"fadeUp 0.2s ease both",
+    }} onClick={onClose}>
+      <div onClick={e=>e.stopPropagation()} style={{
+        width:"100%",maxWidth:400,
+        background:dark?"#161b24":"#fff",
+        border:`2px solid ${t.cardBorder}`,
+        borderRadius:24,padding:"32px 28px",
+        boxShadow:"0 24px 64px rgba(0,0,0,0.4)",
+        animation:"badgePop 0.35s cubic-bezier(0.34,1.56,0.64,1) both",
+      }}>
+        <div style={{textAlign:"center",marginBottom:24}}>
+          <div style={{fontSize:36,marginBottom:10}}>👨‍🍳</div>
+          <p style={{fontFamily:"'Playfair Display',serif",fontSize:24,fontWeight:900,color:t.textPrimary,marginBottom:6}}>
+            {mode==="signin"?"Welcome Back":"Join SpiceSight"}
+          </p>
+          <p style={{fontSize:14,color:t.textMuted,fontWeight:500,lineHeight:1.5}}>
+            {mode==="signin"?"Sign in to access your recipes on any device":"Create an account to sync recipes across devices"}
+          </p>
+        </div>
+
+        <div style={{display:"flex",flexDirection:"column",gap:12,marginBottom:16}}>
+          <input type="email" placeholder="Email" value={email} autoComplete="email"
+            onChange={e=>setEmail(e.target.value)} style={fieldStyle}/>
+          <input type="password" placeholder="Password (6+ characters)" value={password}
+            autoComplete={mode==="signup"?"new-password":"current-password"}
+            onChange={e=>setPassword(e.target.value)}
+            onKeyDown={e=>{if(e.key==="Enter")submit();}}
+            style={fieldStyle}/>
+        </div>
+
+        {err&&(
+          <p style={{fontSize:13,color:"#e05252",fontWeight:600,marginBottom:14,textAlign:"center",lineHeight:1.5}}>{err}</p>
+        )}
+
+        <button onClick={submit} disabled={busy} style={{
+          width:"100%",padding:"15px",borderRadius:14,border:"none",cursor:busy?"default":"pointer",
+          background:`linear-gradient(135deg,${t.accent},${t.accentLight})`,
+          color:"#fff",fontFamily:"'Playfair Display',serif",fontSize:17,fontWeight:700,
+          boxShadow:`0 6px 24px ${t.accent}44`,opacity:busy?0.7:1,
+          transition:"all 0.25s",marginBottom:14,
+        }}>
+          {busy?"One moment...":mode==="signin"?"Sign In":"Create Account"}
+        </button>
+
+        <p style={{fontSize:14,color:t.textMuted,textAlign:"center",fontWeight:500}}>
+          {mode==="signin"?"New here? ":"Already have an account? "}
+          <span onClick={()=>{setMode(m=>m==="signin"?"signup":"signin");setErr("");}}
+            style={{color:t.accent,fontWeight:700,cursor:"pointer"}}>
+            {mode==="signin"?"Create an account":"Sign in"}
+          </span>
+        </p>
+      </div>
+    </div>
+  );
+}
+
 // ─── Main App ─────────────────────────────────────────────────────────────────
 export default function SpiceSight() {
   const [dark,          setDark]          = useState(false);
@@ -841,6 +942,8 @@ export default function SpiceSight() {
   const [checkedItems,  setCheckedItems]  = useState({});
   const [streamName,    setStreamName]    = useState("");
   const [streamPct,     setStreamPct]     = useState(0);
+  const [user,          setUser]          = useState(null);
+  const [showAuth,      setShowAuth]      = useState(false);
 
   // ─── Step refs for auto-advance ───────────────────────────────────────────
   const refMethod   = useRef(null);
@@ -883,21 +986,52 @@ export default function SpiceSight() {
     meta.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no';
   }, []);
 
-  // Load favorites from persistent storage on mount
-  // Works in both Claude.ai (window.storage) and production (localStorage)
+  // ─── Auth session: restore on load, listen for changes ────────────────────
+  useEffect(()=>{
+    supabase.auth.getSession().then(({data})=>{
+      if(data?.session?.user) setUser(data.session.user);
+    });
+    const {data:sub} = supabase.auth.onAuthStateChange((_e,session)=>{
+      setUser(session?.user||null);
+    });
+    return ()=>sub?.subscription?.unsubscribe();
+  },[]);
+
+  // ─── Load recipes: cloud if signed in (migrating any local ones), else local
   useEffect(()=>{
     (async()=>{
       try {
-        if(typeof window.storage !== "undefined") {
-          const res = await window.storage.get("spicesight-favorites");
-          if(res?.value) setFavorites(JSON.parse(res.value));
+        if(user) {
+          // 1. Migrate any localStorage favorites up to the cloud (one time)
+          let localFavs=[];
+          try {
+            const raw=localStorage.getItem("spicesight-favorites");
+            if(raw) localFavs=JSON.parse(raw);
+          } catch {}
+          if(localFavs.length>0) {
+            await supabase.from("recipes").insert(
+              localFavs.map(f=>({user_id:user.id, recipe_data:f}))
+            );
+            localStorage.removeItem("spicesight-favorites");
+          }
+          // 2. Cloud is now the source of truth
+          const {data,error}=await supabase.from("recipes")
+            .select("id,recipe_data").order("created_at",{ascending:false});
+          if(!error&&data) setFavorites(data.map(r=>({...r.recipe_data,_dbId:r.id})));
         } else {
-          const raw = localStorage.getItem("spicesight-favorites");
-          if(raw) setFavorites(JSON.parse(raw));
+          // Signed out → localStorage (also supports Claude.ai artifact env)
+          if(typeof window.storage !== "undefined") {
+            const res = await window.storage.get("spicesight-favorites");
+            if(res?.value) setFavorites(JSON.parse(res.value));
+            else setFavorites([]);
+          } else {
+            const raw = localStorage.getItem("spicesight-favorites");
+            setFavorites(raw?JSON.parse(raw):[]);
+          }
         }
       } catch {}
     })();
-  },[]);
+  },[user]);
 
   async function persistFavorites(updated) {
     try {
@@ -925,19 +1059,36 @@ export default function SpiceSight() {
       servings,
       ...result,
     };
+    if(user) {
+      // Cloud save — get the row id back so we can delete it later
+      const {data,error}=await supabase.from("recipes")
+        .insert({user_id:user.id, recipe_data:entry})
+        .select("id").single();
+      if(!error&&data) entry._dbId=data.id;
+    }
     const updated = [entry, ...favorites];
     setFavorites(updated);
     setIsSaved(true);
     setSavedToast(true);
     setTimeout(()=>setSavedToast(false), 2800);
-    persistFavorites(updated);
+    if(!user) persistFavorites(updated);
   }
 
   async function deleteFavorite(id) {
+    const fav=favorites.find(f=>f.id===id);
     const updated = favorites.filter(f=>f.id!==id);
     setFavorites(updated);
     if(expandedFav===id) setExpandedFav(null);
-    persistFavorites(updated);
+    if(user&&fav?._dbId) {
+      await supabase.from("recipes").delete().eq("id",fav._dbId);
+    } else if(!user) {
+      persistFavorites(updated);
+    }
+  }
+
+  async function signOut() {
+    await supabase.auth.signOut();
+    // onAuthStateChange fires → user becomes null → local favorites reload
   }
 
   useEffect(()=>{
@@ -1184,6 +1335,27 @@ Only use spices from provided list. Prioritize health.${veggies.length>0?" Provi
               })}
             </div>
             <DarkToggle dark={dark} onToggle={()=>setDark(d=>!d)}/>
+            <button
+              onClick={()=>user?signOut():setShowAuth(true)}
+              aria-label={user?"Sign out":"Sign in"}
+              title={user?`Signed in as ${user.email} — tap to sign out`:"Sign in to sync recipes"}
+              style={{
+                width:46,height:46,borderRadius:"50%",
+                display:"flex",alignItems:"center",justifyContent:"center",
+                background:user?`linear-gradient(135deg,${t.accent},${t.accentLight})`:(dark?"rgba(22,18,16,0.9)":"rgba(255,255,255,0.9)"),
+                border:`1.5px solid ${user?t.accent:t.cardBorder}`,
+                cursor:"pointer",flexShrink:0,
+                boxShadow:user?`0 4px 18px ${t.accent}55`:t.shadow,
+                backdropFilter:"blur(12px)",
+                transition:"all 0.3s ease",
+                fontFamily:"'Plus Jakarta Sans',sans-serif",
+                fontSize:user?16:20,fontWeight:800,color:"#fff",
+              }}
+              onMouseEnter={e=>{e.currentTarget.style.transform="scale(1.08)";}}
+              onMouseLeave={e=>{e.currentTarget.style.transform="scale(1)";}}
+            >
+              {user?(user.email?.[0]||"?").toUpperCase():"👤"}
+            </button>
           </div>
           {/* ── LIBRARY VIEW ── */}
           {activeTab==="library"&&(
@@ -2049,6 +2221,11 @@ Only use spices from provided list. Prioritize health.${veggies.length>0?" Provi
             </div>
           )}
           </>}
+
+          {/* ── AUTH MODAL ── */}
+          {showAuth&&(
+            <AuthModal dark={dark} t={t} onClose={()=>setShowAuth(false)} onAuth={u=>setUser(u)}/>
+          )}
 
           {/* ── SHOPPING LIST MODAL ── */}
           {showShoppingList&&result&&(
