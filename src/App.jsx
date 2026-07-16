@@ -136,24 +136,22 @@ function Background({ dark }) {
 function DarkToggle({ dark, onToggle }) {
   const t = dark ? T.dark : T.light;
   return (
-    <button onClick={onToggle} style={{
-      display:"flex",alignItems:"center",gap:7,
-      background:"transparent",
-      border:"none",
-      borderRadius:99,padding:"10px 16px",cursor:"pointer",
-      fontFamily:"'Plus Jakarta Sans',sans-serif",fontSize:14,fontWeight:700,
-      color:t.textMuted,
+    <button onClick={onToggle} aria-label={dark?"Switch to light mode":"Switch to dark mode"} title={dark?"Light mode":"Dark mode"} style={{
+      width:46,height:46,borderRadius:"50%",
+      display:"flex",alignItems:"center",justifyContent:"center",
+      background:dark?"rgba(22,18,16,0.9)":"rgba(255,255,255,0.9)",
+      border:`1.5px solid ${t.cardBorder}`,
+      cursor:"pointer",flexShrink:0,
+      boxShadow:t.shadow,
+      backdropFilter:"blur(12px)",
       transition:"all 0.3s ease",
-      letterSpacing:0.3,
-      whiteSpace:"nowrap",
     }}
-    onMouseEnter={e=>{e.currentTarget.style.color=t.accent;}}
-    onMouseLeave={e=>{e.currentTarget.style.color=t.textMuted;}}
+    onMouseEnter={e=>{e.currentTarget.style.borderColor=t.accent;e.currentTarget.style.boxShadow=`0 4px 20px ${t.accent}33`;e.currentTarget.style.transform="scale(1.08)";}}
+    onMouseLeave={e=>{e.currentTarget.style.borderColor=t.cardBorder;e.currentTarget.style.boxShadow=t.shadow;e.currentTarget.style.transform="scale(1)";}}
     >
-      <span style={{fontSize:16,transition:"transform 0.4s",transform:dark?"rotate(180deg)":"rotate(0deg)",display:"inline-block"}}>
+      <span style={{fontSize:20,transition:"transform 0.4s",transform:dark?"rotate(180deg)":"rotate(0deg)",display:"inline-block"}}>
         {dark ? "☀️" : "🌙"}
       </span>
-      <span>{dark ? "Light" : "Dark"}</span>
     </button>
   );
 }
@@ -1173,8 +1171,8 @@ Only use spices from provided list. Prioritize health.${veggies.length>0?" Provi
       <div style={{minHeight:"100vh",padding:"24px 14px 80px",position:"relative",zIndex:1,fontFamily:"'Plus Jakarta Sans',sans-serif",color:t.textPrimary,transition:"color 0.4s"}}>
         <div style={{maxWidth:1200,margin:"0 auto",width:"100%"}}>
 
-          {/* ── TOP BAR: tabs + dark toggle — always visible ── */}
-          <div style={{display:"flex",justifyContent:"center",alignItems:"center",marginBottom:24}}>
+          {/* ── TOP BAR: tabs pill + standalone dark toggle ── */}
+          <div style={{display:"flex",justifyContent:"center",alignItems:"center",marginBottom:24,gap:12}}>
             <div style={{display:"flex",alignItems:"center",background:dark?"rgba(22,18,16,0.9)":"rgba(255,255,255,0.9)",border:`1.5px solid ${t.cardBorder}`,borderRadius:99,padding:5,gap:4,boxShadow:t.shadow,backdropFilter:"blur(12px)"}}>
               {[{id:"create",icon:"✦",label:"New Recipe"},{id:"library",icon:"📚",label:`My Recipes${favorites.length>0?` (${favorites.length})`:""}`}].map(tab=>{
                 const active=activeTab===tab.id;
@@ -1184,9 +1182,8 @@ Only use spices from provided list. Prioritize health.${veggies.length>0?" Provi
                   </button>
                 );
               })}
-              <div style={{width:"1.5px",height:24,background:t.cardBorder,margin:"0 4px",flexShrink:0}}/>
-              <DarkToggle dark={dark} onToggle={()=>setDark(d=>!d)}/>
             </div>
+            <DarkToggle dark={dark} onToggle={()=>setDark(d=>!d)}/>
           </div>
           {/* ── LIBRARY VIEW ── */}
           {activeTab==="library"&&(
