@@ -5,7 +5,7 @@ import { createClient } from "@supabase/supabase-js";
 // These two values are SAFE to have in frontend code (unlike the Gemini key):
 // they're designed to be public. Data security comes from Row Level Security
 // rules in the database, not from hiding these.
-const SUPABASE_URL = "https://rvubqpalotjqbtwrifhn.supabase.co/rest/v1/";
+const SUPABASE_URL = "https://rvubqpalotjqbtwrifhn.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_H4QHaNUJxg9oVFPs7xnahg_nltUwi-i";
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
