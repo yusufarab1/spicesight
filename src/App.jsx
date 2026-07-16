@@ -839,8 +839,11 @@ function AuthModal({ dark, t, onClose, onAuth }) {
   }
 
   const fieldStyle = {
-    width:"100%",background:t.inputBg,border:`2px solid ${t.inputBorder}`,
-    borderRadius:12,padding:"13px 16px",color:t.textPrimary,
+    width:"100%",
+    background:dark?"#0a0e16":t.inputBg,
+    border:`2px solid ${dark?"#4a5a78":t.inputBorder}`,
+    borderRadius:12,padding:"13px 16px",
+    color:dark?"#ffffff":t.textPrimary,
     fontFamily:"'Plus Jakarta Sans',sans-serif",fontSize:16,fontWeight:500,
     outline:"none",boxSizing:"border-box",
   };
@@ -854,8 +857,8 @@ function AuthModal({ dark, t, onClose, onAuth }) {
     }} onClick={onClose}>
       <div onClick={e=>e.stopPropagation()} style={{
         width:"100%",maxWidth:400,
-        background:dark?"#161b24":"#fff",
-        border:`2px solid ${t.cardBorder}`,
+        background:dark?"#1a2030":"#fff",
+        border:`2px solid ${dark?"#3a4660":t.cardBorder}`,
         borderRadius:24,padding:"32px 28px",
         boxShadow:"0 24px 64px rgba(0,0,0,0.4)",
         animation:"badgePop 0.35s cubic-bezier(0.34,1.56,0.64,1) both",
@@ -944,6 +947,7 @@ export default function SpiceSight() {
   const [streamPct,     setStreamPct]     = useState(0);
   const [user,          setUser]          = useState(null);
   const [showAuth,      setShowAuth]      = useState(false);
+  const [showAccountMenu, setShowAccountMenu] = useState(false);
 
   // ─── Step refs for auto-advance ───────────────────────────────────────────
   const refMethod   = useRef(null);
@@ -1256,7 +1260,7 @@ Only use spices from provided list. Prioritize health.${veggies.length>0?" Provi
         *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
         html{scroll-behavior:smooth;-webkit-text-size-adjust:100%;text-size-adjust:100%}
         body{background:${t.pageBg};transition:background 0.5s;overflow-x:hidden;font-family:'Plus Jakarta Sans',sans-serif}
-        input::placeholder{color:${dark?"#6a7a9a":"#b89878"};opacity:1}
+        input::placeholder{color:${dark?"#8a9ab8":"#b89878"};opacity:1}
         input{color:${t.textPrimary}}
         ::selection{background:${t.accent}40}
         ::-webkit-scrollbar{width:5px}
@@ -1335,27 +1339,61 @@ Only use spices from provided list. Prioritize health.${veggies.length>0?" Provi
               })}
             </div>
             <DarkToggle dark={dark} onToggle={()=>setDark(d=>!d)}/>
-            <button
-              onClick={()=>user?signOut():setShowAuth(true)}
-              aria-label={user?"Sign out":"Sign in"}
-              title={user?`Signed in as ${user.email} — tap to sign out`:"Sign in to sync recipes"}
-              style={{
-                width:46,height:46,borderRadius:"50%",
-                display:"flex",alignItems:"center",justifyContent:"center",
-                background:user?`linear-gradient(135deg,${t.accent},${t.accentLight})`:(dark?"rgba(22,18,16,0.9)":"rgba(255,255,255,0.9)"),
-                border:`1.5px solid ${user?t.accent:t.cardBorder}`,
-                cursor:"pointer",flexShrink:0,
-                boxShadow:user?`0 4px 18px ${t.accent}55`:t.shadow,
-                backdropFilter:"blur(12px)",
-                transition:"all 0.3s ease",
-                fontFamily:"'Plus Jakarta Sans',sans-serif",
-                fontSize:user?16:20,fontWeight:800,color:"#fff",
-              }}
-              onMouseEnter={e=>{e.currentTarget.style.transform="scale(1.08)";}}
-              onMouseLeave={e=>{e.currentTarget.style.transform="scale(1)";}}
-            >
-              {user?(user.email?.[0]||"?").toUpperCase():"👤"}
-            </button>
+            <div style={{position:"relative"}}>
+              <button
+                onClick={()=>user?setShowAccountMenu(m=>!m):setShowAuth(true)}
+                aria-label={user?"Account menu":"Sign in"}
+                title={user?user.email:"Sign in to sync recipes"}
+                style={{
+                  width:46,height:46,borderRadius:"50%",
+                  display:"flex",alignItems:"center",justifyContent:"center",
+                  background:user?`linear-gradient(135deg,${t.accent},${t.accentLight})`:(dark?"rgba(22,18,16,0.9)":"rgba(255,255,255,0.9)"),
+                  border:`1.5px solid ${user?t.accent:t.cardBorder}`,
+                  cursor:"pointer",flexShrink:0,
+                  boxShadow:user?`0 4px 18px ${t.accent}55`:t.shadow,
+                  backdropFilter:"blur(12px)",
+                  transition:"all 0.3s ease",
+                  fontFamily:"'Plus Jakarta Sans',sans-serif",
+                  fontSize:user?16:20,fontWeight:800,color:"#fff",
+                }}
+                onMouseEnter={e=>{e.currentTarget.style.transform="scale(1.08)";}}
+                onMouseLeave={e=>{e.currentTarget.style.transform="scale(1)";}}
+              >
+                {user?(user.email?.[0]||"?").toUpperCase():"👤"}
+              </button>
+              {/* Account dropdown */}
+              {user&&showAccountMenu&&(
+                <>
+                  {/* click-away catcher */}
+                  <div style={{position:"fixed",inset:0,zIndex:998}} onClick={()=>setShowAccountMenu(false)}/>
+                  <div style={{
+                    position:"absolute",top:54,right:0,zIndex:999,
+                    background:dark?"#1a2030":"#fff",
+                    border:`1.5px solid ${dark?"#3a4660":t.cardBorder}`,
+                    borderRadius:16,padding:"14px",minWidth:220,
+                    boxShadow:"0 16px 48px rgba(0,0,0,0.3)",
+                    animation:"fadeUp 0.2s ease both",
+                  }}>
+                    <p style={{fontSize:11,letterSpacing:1.5,color:t.textFaint,textTransform:"uppercase",fontWeight:700,marginBottom:4}}>Signed in as</p>
+                    <p style={{fontSize:14,fontWeight:700,color:t.textPrimary,marginBottom:12,wordBreak:"break-all"}}>{user.email}</p>
+                    <div style={{fontSize:12,color:t.textMuted,fontWeight:600,marginBottom:14,display:"flex",alignItems:"center",gap:6}}>
+                      <span style={{width:7,height:7,borderRadius:"50%",background:"#52d468",display:"inline-block"}}/>
+                      Recipes syncing to cloud
+                    </div>
+                    <button onClick={()=>{setShowAccountMenu(false);signOut();}} style={{
+                      width:"100%",padding:"11px",borderRadius:10,cursor:"pointer",
+                      background:"transparent",border:`1.5px solid ${dark?"#5a3030":"#e8c0c0"}`,
+                      color:"#e05252",fontFamily:"'Plus Jakarta Sans',sans-serif",
+                      fontSize:13,fontWeight:700,transition:"all 0.2s",
+                    }}
+                    onMouseEnter={e=>{e.currentTarget.style.background="#e0525215";}}
+                    onMouseLeave={e=>{e.currentTarget.style.background="transparent";}}>
+                      Sign Out
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
           {/* ── LIBRARY VIEW ── */}
           {activeTab==="library"&&(
