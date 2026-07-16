@@ -1258,7 +1258,7 @@ Only use spices from provided list. Prioritize health.${veggies.length>0?" Provi
                                 </div>
                                 <div style={{display:"flex",flexDirection:"column",gap:7}}>
                                   {fav.spice_mix?.map((s,i)=>{
-                                    const C=["#c8440c","#c8840c","#8b4a10","#2d7a3a","#1a6e8a","#9b2a5a"],c=C[i%C.length];
+                                    const C=dark?["#ff8a5c","#f0c040","#e8a060","#52d468","#5cc8e8","#f078a8"]:["#c8440c","#c8840c","#8b4a10","#2d7a3a","#1a6e8a","#9b2a5a"],c=C[i%C.length];
                                     return (
                                       <div key={i} style={{display:"flex",alignItems:"center",gap:12,background:t.subBg,border:`1.5px solid ${t.cardBorder}`,borderRadius:12,padding:"12px 15px"}}>
                                         <span style={{minWidth:68,textAlign:"center",background:`${c}18`,border:`2px solid ${c}55`,borderRadius:10,padding:"6px 8px",fontSize:15,fontWeight:700,color:c,flexShrink:0,fontFamily:"'Playfair Display',serif"}}>{s.amount}</span>
@@ -1905,7 +1905,7 @@ Only use spices from provided list. Prioritize health.${veggies.length>0?" Provi
                 </div>
                 <div style={{display:"flex",flexDirection:"column",gap:12}}>
                   {result.spice_mix?.map((s,i)=>{
-                    const colors=["#c8440c","#c8840c","#8b4a10","#2d7a3a","#1a6e8a","#9b2a5a"];
+                    const colors=dark?["#ff8a5c","#f0c040","#e8a060","#52d468","#5cc8e8","#f078a8"]:["#c8440c","#c8840c","#8b4a10","#2d7a3a","#1a6e8a","#9b2a5a"];
                     const c=colors[i%colors.length];
                     return (
                       <div key={i} className="spice-row" style={{display:"flex",alignItems:"center",gap:14,background:t.subBg,border:`1.5px solid ${t.cardBorder}`,borderRadius:14,padding:"18px 20px",transition:"all 0.25s",cursor:"default"}}
