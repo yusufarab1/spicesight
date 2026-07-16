@@ -1,3 +1,5 @@
+export const config = { supportsResponseStreaming: true };
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
@@ -10,17 +12,17 @@ export default async function handler(req, res) {
     });
   }
 
-  // The frontend sends { prompt: "..." }
   const { prompt } = req.body || {};
   if (!prompt) {
     return res.status(400).json({ error: 'No prompt provided' });
   }
 
   const MODEL = 'gemini-3-flash-preview';
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${apiKey}`;
+  // streamGenerateContent with alt=sse gives us Server-Sent Events chunks
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:streamGenerateContent?alt=sse&key=${apiKey}`;
 
   try {
-    const response = await fetch(url, {
+    const upstream = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -33,26 +35,52 @@ export default async function handler(req, res) {
       }),
     });
 
-    const data = await response.json();
-
-    if (!response.ok) {
-      console.error('Gemini API error:', response.status, JSON.stringify(data));
-      return res.status(response.status).json({
-        error: data?.error?.message || 'Gemini API request failed',
+    if (!upstream.ok) {
+      const err = await upstream.json().catch(() => ({}));
+      console.error('Gemini API error:', upstream.status, JSON.stringify(err));
+      return res.status(upstream.status).json({
+        error: err?.error?.message || 'Gemini API request failed',
       });
     }
 
-    // Gemini nests the text deep — dig it out
-    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!text) {
-      console.error('Unexpected Gemini shape:', JSON.stringify(data));
-      return res.status(500).json({ error: 'Gemini returned no usable text' });
+    // Stream plain text chunks to the client as they arrive
+    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-cache');
+
+    const reader = upstream.body.getReader();
+    const decoder = new TextDecoder();
+    let sseBuf = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      sseBuf += decoder.decode(value, { stream: true });
+
+      // SSE format: lines like "data: {...json chunk...}"
+      let nl;
+      while ((nl = sseBuf.indexOf('\n')) !== -1) {
+        const line = sseBuf.slice(0, nl).trim();
+        sseBuf = sseBuf.slice(nl + 1);
+        if (!line.startsWith('data:')) continue;
+        const payload = line.slice(5).trim();
+        if (!payload || payload === '[DONE]') continue;
+        try {
+          const json = JSON.parse(payload);
+          const text = json?.candidates?.[0]?.content?.parts?.[0]?.text;
+          if (text) res.write(text);
+        } catch {
+          // partial frame — ignore, it completes on a later read
+        }
+      }
     }
 
-    // Return in a simple shape the frontend can rely on
-    return res.status(200).json({ text });
+    res.end();
   } catch (err) {
     console.error('Proxy error:', err);
-    return res.status(500).json({ error: 'Failed to reach Gemini: ' + err.message });
+    try {
+      res.status(500).json({ error: 'Failed to reach Gemini: ' + err.message });
+    } catch {
+      res.end();
+    }
   }
 }

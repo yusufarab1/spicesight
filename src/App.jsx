@@ -841,6 +841,8 @@ export default function SpiceSight() {
   const [shareToast,    setShareToast]    = useState(false);
   const [showShoppingList, setShowShoppingList] = useState(false);
   const [checkedItems,  setCheckedItems]  = useState({});
+  const [streamName,    setStreamName]    = useState("");
+  const [streamPct,     setStreamPct]     = useState(0);
 
   // ─── Step refs for auto-advance ───────────────────────────────────────────
   const refMethod   = useRef(null);
@@ -1022,20 +1024,39 @@ Return ONLY valid JSON:
 Only use spices from provided list. Prioritize health.${veggies.length>0?" Provide detailed veggie prep.":""}${allMeatLabels.length>1?" Acknowledge the multi-protein combination in the recipe name.":""}`;
     }
     try {
+      setStreamName("");setStreamPct(0);
       const res=await fetch("/api/generate",{
         method:"POST",
         headers:{"Content-Type":"application/json"},
         body:JSON.stringify({prompt}),
       });
-      const data=await res.json();
 
-      if(!res.ok) throw new Error(data?.error||`Request failed (${res.status})`);
+      if(!res.ok){
+        const data=await res.json().catch(()=>({}));
+        throw new Error(data?.error||`Request failed (${res.status})`);
+      }
 
-      const raw = data.text || "";
-      const match = raw.match(/\{[\s\S]*\}/);
+      // ── Stream the response in, extracting fields live ──
+      const reader=res.body.getReader();
+      const decoder=new TextDecoder();
+      let buffer="";
+      const EXPECTED_CHARS=2600; // typical full recipe length — drives progress bar
+      while(true){
+        const {done,value}=await reader.read();
+        if(done) break;
+        buffer+=decoder.decode(value,{stream:true});
+        // Live-extract the recipe name the moment the AI writes it
+        const nameMatch=buffer.match(/"recipe_name"\s*:\s*"([^"]*)"/);
+        if(nameMatch&&nameMatch[1]) setStreamName(nameMatch[1]);
+        // Progress from real bytes received (capped at 95% until parse succeeds)
+        setStreamPct(Math.min(Math.round((buffer.length/EXPECTED_CHARS)*100),95));
+      }
+
+      const match=buffer.match(/\{[\s\S]*\}/);
       if(!match) throw new Error("The AI returned an unexpected format. Try again.");
 
-      const parsed = JSON.parse(match[0]);
+      const parsed=JSON.parse(match[0]);
+      setStreamPct(100);
       setResult(parsed);
       setScreen("results");
       window.scrollTo({top:0,behavior:"instant"});
@@ -1302,9 +1323,32 @@ Only use spices from provided list. Prioritize health.${veggies.length>0?" Provi
                   {surpriseMode?"🎲":"🌿"}
                 </div>
               </div>
-              <div style={{textAlign:"center"}}>
+              <div style={{textAlign:"center",maxWidth:420,width:"100%",padding:"0 20px"}}>
                 <p style={{fontFamily:"'Playfair Display',serif",fontSize:22,fontWeight:700,color:t.textPrimary,marginBottom:8}}>{loadingMsg}</p>
-                <p style={{fontSize:14,color:t.textMuted,fontWeight:500}}>Crafting your perfect recipe...</p>
+                {streamName?(
+                  <p style={{fontFamily:"'Playfair Display',serif",fontSize:26,fontWeight:900,color:t.accent,marginTop:14,marginBottom:6,animation:"fadeUp 0.5s ease both"}}>
+                    ✨ {streamName}
+                  </p>
+                ):(
+                  <p style={{fontSize:14,color:t.textMuted,fontWeight:500}}>Crafting your perfect recipe...</p>
+                )}
+                {/* Live progress driven by real bytes streaming in */}
+                {streamPct>0&&(
+                  <div style={{marginTop:18}}>
+                    <div style={{height:6,background:t.cardBorder,borderRadius:99,overflow:"hidden"}}>
+                      <div style={{
+                        height:"100%",borderRadius:99,
+                        width:`${streamPct}%`,
+                        background:`linear-gradient(90deg,${t.accent},${t.accentLight})`,
+                        boxShadow:`0 0 10px ${t.accent}66`,
+                        transition:"width 0.3s ease",
+                      }}/>
+                    </div>
+                    <p style={{fontSize:12,color:t.textFaint,fontWeight:600,marginTop:8,letterSpacing:0.5}}>
+                      {streamName?"The chef is writing your recipe…":"Waiting for the chef…"} {streamPct}%
+                    </p>
+                  </div>
+                )}
               </div>
               <div style={{display:"flex",gap:8}}>
                 {[0,1,2].map(i=>(
