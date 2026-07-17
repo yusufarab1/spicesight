@@ -948,6 +948,7 @@ export default function SpiceSight() {
   const [user,          setUser]          = useState(null);
   const [showAuth,      setShowAuth]      = useState(false);
   const [showAccountMenu, setShowAccountMenu] = useState(false);
+  const [errorToast,    setErrorToast]    = useState(false);
 
   // ─── Step refs for auto-advance ───────────────────────────────────────────
   const refMethod   = useRef(null);
@@ -1215,6 +1216,8 @@ Only use spices from provided list. Prioritize health.${veggies.length>0?" Provi
       window.scrollTo({top:0,behavior:"instant"});
     } catch(err) {
       setError(err.message||"Something went wrong. Please try again.");
+      setErrorToast(true);
+      setTimeout(()=>setErrorToast(false), 5000);
     }
     finally{setLoading(false);}
   }
@@ -2279,6 +2282,17 @@ Only use spices from provided list. Prioritize health.${veggies.length>0?" Provi
           )}
 
           {/* ── TOAST ── */}
+          {errorToast&&error&&(
+            <div style={{position:"fixed",bottom:32,left:"50%",transform:"translateX(-50%)",zIndex:9999,animation:"toastIn 0.35s cubic-bezier(0.34,1.56,0.64,1) both",pointerEvents:"none",maxWidth:"90vw"}}>
+              <div style={{background:dark?"#161b24":"#fff",border:`2px solid #e05252`,borderRadius:20,padding:"14px 28px",boxShadow:"0 16px 48px rgba(0,0,0,0.25)",display:"flex",alignItems:"center",gap:12}}>
+                <span style={{fontSize:22}}>🌶</span>
+                <div>
+                  <p style={{fontFamily:"'Playfair Display',serif",fontSize:17,fontWeight:700,color:"#e05252",marginBottom:2}}>Hold On!</p>
+                  <p style={{fontSize:13,color:t.textMuted,fontWeight:500,lineHeight:1.5}}>{error}</p>
+                </div>
+              </div>
+            </div>
+          )}
           {savedToast&&(
             <div style={{position:"fixed",bottom:32,left:"50%",transform:"translateX(-50%)",zIndex:9999,animation:"toastIn 0.35s cubic-bezier(0.34,1.56,0.64,1) both",pointerEvents:"none"}}>
               <div style={{background:dark?"#161b24":"#fff",border:`2px solid #2d7a3a`,borderRadius:99,padding:"14px 28px",boxShadow:"0 16px 48px rgba(0,0,0,0.25)",display:"flex",alignItems:"center",gap:12}}>
