@@ -56,11 +56,12 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Prompt too long' });
   }
 
-  const MODEL = 'gemini-3-flash-preview';
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:streamGenerateContent?alt=sse&key=${apiKey}`;
+  const PRIMARY = 'gemini-3-flash-preview';
+  const FALLBACK = 'gemini-flash-lite-latest';
 
-  try {
-    const upstream = await fetch(url, {
+  const callGemini = (model) => fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?alt=sse&key=${apiKey}`,
+    {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -71,14 +72,33 @@ export default async function handler(req, res) {
           responseMimeType: 'application/json',
         },
       }),
-    });
+    }
+  );
+
+  // Translate Google's error walls into something a human wants to read
+  const friendly = (status, msg) => {
+    const m = (msg || '').toLowerCase();
+    if (status === 429 || m.includes('quota'))
+      return "The kitchen is busy right now — please try again in a minute 🌶";
+    if (status === 503 || m.includes('high demand') || m.includes('overloaded'))
+      return "The chef is swamped at the moment — give it a few seconds and try again 👨‍🍳";
+    return msg || 'Recipe generation failed — please try again.';
+  };
+
+  try {
+    let upstream = await callGemini(PRIMARY);
+
+    // Primary overloaded or throttled by Google? Silently try the lighter model.
+    if (!upstream.ok && (upstream.status === 429 || upstream.status === 503)) {
+      console.warn('Primary model unavailable (', upstream.status, ') — trying fallback');
+      upstream = await callGemini(FALLBACK);
+    }
 
     if (!upstream.ok) {
       const err = await upstream.json().catch(() => ({}));
-      console.error('Gemini API error:', upstream.status, JSON.stringify(err));
-      return res.status(upstream.status).json({
-        error: err?.error?.message || 'Gemini API request failed',
-      });
+      const raw = err?.error?.message || 'Gemini API request failed';
+      console.error('Gemini API error:', upstream.status, raw);
+      return res.status(upstream.status).json({ error: friendly(upstream.status, raw) });
     }
 
     res.setHeader('Content-Type', 'text/plain; charset=utf-8');
