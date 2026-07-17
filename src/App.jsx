@@ -446,18 +446,44 @@ function CookingSteps({ steps, t }) {
     setTimers(prev=>({...prev,[i]:{remaining:initial,running:false,initial}}));
   }
 
+  // Pleasant three-note chime, generated in code — no audio file needed
+  function playTimerChime() {
+    try {
+      const ctx = new (window.AudioContext||window.webkitAudioContext)();
+      [[880,0],[1108.7,0.18],[1318.5,0.36]].forEach(([freq,delay])=>{
+        const osc=ctx.createOscillator();
+        const gain=ctx.createGain();
+        osc.type="sine";
+        osc.frequency.value=freq;
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        const t0=ctx.currentTime+delay;
+        gain.gain.setValueAtTime(0,t0);
+        gain.gain.linearRampToValueAtTime(0.35,t0+0.02);
+        gain.gain.exponentialRampToValueAtTime(0.001,t0+0.7);
+        osc.start(t0);
+        osc.stop(t0+0.75);
+      });
+      setTimeout(()=>ctx.close(),1600);
+    } catch {}
+    // Vibrate on phones that support it (Android; iOS ignores silently)
+    try { navigator.vibrate?.([200,100,200,100,400]); } catch {}
+  }
+
   useEffect(()=>{
     const id=setInterval(()=>{
       setTimers(prev=>{
         let changed=false;
+        let finished=false;
         const next={...prev};
         Object.keys(next).forEach(k=>{
           if(next[k].running&&next[k].remaining>0){
             next[k]={...next[k],remaining:next[k].remaining-1};
-            if(next[k].remaining===0) next[k]={...next[k],running:false};
+            if(next[k].remaining===0){ next[k]={...next[k],running:false}; finished=true; }
             changed=true;
           }
         });
+        if(finished) playTimerChime();
         return changed?next:prev;
       });
     },1000);
@@ -1105,19 +1131,24 @@ export default function SpiceSight() {
       servings,
       ...result,
     };
+    let cloudOk=false;
     if(user) {
       // Cloud save — get the row id back so we can delete it later
-      const {data,error}=await supabase.from("recipes")
-        .insert({user_id:user.id, recipe_data:entry})
-        .select("id").single();
-      if(!error&&data) entry._dbId=data.id;
+      try {
+        const {data,error}=await supabase.from("recipes")
+          .insert({user_id:user.id, recipe_data:entry})
+          .select("id").single();
+        if(!error&&data) { entry._dbId=data.id; cloudOk=true; }
+      } catch {}
     }
     const updated = [entry, ...favorites];
     setFavorites(updated);
     setIsSaved(true);
     setSavedToast(true);
     setTimeout(()=>setSavedToast(false), 2800);
-    if(!user) persistFavorites(updated);
+    // Persist locally when signed out OR when the cloud write failed,
+    // so a network blip never silently loses a recipe
+    if(!user||!cloudOk) persistFavorites(updated.filter(f=>!f._dbId));
   }
 
   async function deleteFavorite(id) {
@@ -1220,11 +1251,18 @@ Only use spices from provided list. Prioritize health.${veggies.length>0?" Provi
     }
     try {
       setStreamName("");setStreamPct(0);
-      const res=await fetch("/api/generate",{
-        method:"POST",
-        headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({prompt}),
-      });
+      // Timeout guard: a phone with flaky signal shouldn't spin forever
+      const controller=new AbortController();
+      const timeout=setTimeout(()=>controller.abort(),60000);
+      let res;
+      try {
+        res=await fetch("https://spicesight.vercel.app/api/generate",{
+          method:"POST",
+          headers:{"Content-Type":"application/json"},
+          body:JSON.stringify({prompt}),
+          signal:controller.signal,
+        });
+      } finally { clearTimeout(timeout); }
 
       if(!res.ok){
         const data=await res.json().catch(()=>({}));
@@ -1256,7 +1294,10 @@ Only use spices from provided list. Prioritize health.${veggies.length>0?" Provi
       setScreen("results");
       window.scrollTo({top:0,behavior:"instant"});
     } catch(err) {
-      setError(err.message||"Something went wrong. Please try again.");
+      const msg=err.name==="AbortError"
+        ? "That took too long — check your connection and try again 🌶"
+        : (err.message||"Something went wrong. Please try again.");
+      setError(msg);
       setErrorToast(true);
       setTimeout(()=>setErrorToast(false), 5000);
     }
@@ -1502,6 +1543,21 @@ Only use spices from provided list. Prioritize health.${veggies.length>0?" Provi
                           {isOpen&&(
                             <div style={{borderTop:`1px solid ${t.cardBorder}`,padding:"20px 22px",display:"flex",flexDirection:"column",gap:16,animation:"fadeUp 0.3s ease both"}}>
                               {fav.health_notes&&<div style={{background:t.mutedBg,border:`1.5px solid ${t.cardBorder}`,borderRadius:12,padding:"14px 17px"}}><p style={{fontSize:15,color:t.textPrimary,lineHeight:1.8,fontWeight:500}}>{fav.health_notes}</p></div>}
+                              {fav.nutrition&&(
+                                <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
+                                  {[
+                                    {l:"🔥",v:fav.nutrition.calories,u:"kcal",c:"#ff7a2e"},
+                                    {l:"💪",v:fav.nutrition.protein,u:"g protein",c:dark?"#5cc8e8":"#4a90d9"},
+                                    {l:"🌾",v:fav.nutrition.carbs,u:"g carbs",c:dark?"#f0c040":"#c8840c"},
+                                    {l:"🥑",v:fav.nutrition.fat,u:"g fat",c:dark?"#ff8a5c":"#e87050"},
+                                    {l:"🌿",v:fav.nutrition.fiber,u:"g fiber",c:dark?"#52d468":"#2d7a3a"},
+                                  ].filter(m=>m.v!=null).map((m,i)=>(
+                                    <span key={i} style={{display:"inline-flex",alignItems:"center",gap:5,background:`${m.c}14`,border:`1.5px solid ${m.c}44`,borderRadius:99,padding:"5px 12px",fontSize:12,fontWeight:700,color:m.c}}>
+                                      {m.l} {m.v} {m.u}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
                               <div>
                                 <div style={{display:"flex",alignItems:"center",gap:9,marginBottom:14}}>
                                   <span style={{fontSize:18}}>🌿</span>
