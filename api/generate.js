@@ -1,28 +1,31 @@
 export const config = { supportsResponseStreaming: true };
 
-// ─── Rate limiting ────────────────────────────────────────────────────────────
-// 10 recipes per 15 minutes per IP. In-memory: resets on cold starts, which is
-// fine — the goal is blunting rapid-fire abuse, not perfect accounting.
-const WINDOW_MS = 15 * 60 * 1000;
-const MAX_PER_WINDOW = 10;
-const hits = new Map(); // ip → array of timestamps
+const MAX_PER_WINDOW = 10; // recipes per 15-minute window per IP
 
-function isRateLimited(ip) {
-  const now = Date.now();
-  const recent = (hits.get(ip) || []).filter(t => now - t < WINDOW_MS);
-  if (recent.length >= MAX_PER_WINDOW) {
-    hits.set(ip, recent);
+// Shared rate limit check — calls the Postgres function so the count is
+// accurate across ALL Vercel instances. Fails open: if the check itself
+// errors, we allow the request rather than break recipe generation.
+async function isAllowed(ip) {
+  const url = process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_KEY;
+  if (!url || !key) return true; // not configured → don't block
+
+  try {
+    const r = await fetch(`${url}/rest/v1/rpc/check_rate_limit`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': key,
+        'Authorization': `Bearer ${key}`,
+      },
+      body: JSON.stringify({ p_ip: ip, p_max: MAX_PER_WINDOW }),
+    });
+    if (!r.ok) return true;
+    const allowed = await r.json();
+    return allowed === true;
+  } catch {
     return true;
   }
-  recent.push(now);
-  hits.set(ip, recent);
-  // housekeeping so the map never grows unbounded
-  if (hits.size > 5000) {
-    for (const [k, v] of hits) {
-      if (v.every(t => now - t > WINDOW_MS)) hits.delete(k);
-    }
-  }
-  return false;
 }
 
 export default async function handler(req, res) {
@@ -31,7 +34,8 @@ export default async function handler(req, res) {
   }
 
   const ip = (req.headers['x-forwarded-for'] || 'unknown').split(',')[0].trim();
-  if (isRateLimited(ip)) {
+  const allowed = await isAllowed(ip);
+  if (!allowed) {
     return res.status(429).json({
       error: "You've hit the recipe limit (10 per 15 minutes). Take a breather and try again soon 🌶",
     });
