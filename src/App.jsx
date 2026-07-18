@@ -701,22 +701,38 @@ function QuickTimer({ dark, t }) {
 
   return (
     <>
-      {/* Floating button */}
-      <button onClick={()=>{ if(ringing){stopRing();return;} setOpen(o=>!o); }} aria-label={ringing?"Stop alarm":"Quick timer"} style={{
-        position:"fixed",bottom:24,right:24,zIndex:9000,
-        minWidth:62,height:62,borderRadius:99,padding:"0 20px",
-        display:"flex",alignItems:"center",justifyContent:"center",gap:8,
-        background:ringing?"#e05252":active?`linear-gradient(135deg,${t.accent},${t.accentLight})`:(dark?"#1a2030":"#fff"),
-        border:`2px solid ${ringing?"#e05252":active?t.accent:t.cardBorder}`,
-        boxShadow:ringing?"0 8px 32px #e0525288":active?`0 8px 28px ${t.accent}66`:"0 8px 24px rgba(0,0,0,0.2)",
-        cursor:"pointer",transition:"all 0.3s",
-        fontFamily:"'Playfair Display',serif",fontSize:active?23:18,fontWeight:900,
-        color:(active||ringing)?"#fff":t.textPrimary,
-        fontVariantNumeric:"tabular-nums",
-        animation:ringing?"alarmPulse 0.9s ease-in-out infinite":"none",
-      }}>
-        {ringing?<><span style={{fontSize:19}}>🔔</span>Stop</>:active?<><span style={{fontSize:17}}>⏱</span>{fmt(remaining)}</>:<><span style={{fontSize:22}}>⏱</span>Timer</>}
-      </button>
+      {/* Floating button with arched label */}
+      <div style={{position:"fixed",bottom:24,right:24,zIndex:9000,display:"flex",flexDirection:"column",alignItems:"center"}}>
+        {/* Arched "Timer" label — only in idle state */}
+        {!active&&!ringing&&(
+          <svg width="104" height="34" viewBox="0 0 104 34" style={{marginBottom:-6,pointerEvents:"none",overflow:"visible"}}>
+            <defs>
+              <path id="timerArc" d="M 10 32 Q 52 -4 94 32" fill="none"/>
+            </defs>
+            <text style={{
+              fontFamily:"'Playfair Display',serif",fontStyle:"italic",fontWeight:700,
+              fontSize:"17px",letterSpacing:"3px",
+              fill:dark?"#f0c040":t.accent,
+            }}>
+              <textPath href="#timerArc" startOffset="50%" textAnchor="middle">Timer</textPath>
+            </text>
+          </svg>
+        )}
+        <button onClick={()=>{ if(ringing){stopRing();return;} setOpen(o=>!o); }} aria-label={ringing?"Stop alarm":"Quick timer"} style={{
+          minWidth:(active||ringing)?"auto":66,height:66,borderRadius:99,padding:(active||ringing)?"0 22px":0,
+          display:"flex",alignItems:"center",justifyContent:"center",gap:8,
+          background:ringing?"#e05252":active?`linear-gradient(135deg,${t.accent},${t.accentLight})`:(dark?"#1a2030":"#fff"),
+          border:`2px solid ${ringing?"#e05252":active?t.accent:t.cardBorder}`,
+          boxShadow:ringing?"0 8px 32px #e0525288":active?`0 8px 28px ${t.accent}66`:"0 8px 24px rgba(0,0,0,0.2)",
+          cursor:"pointer",transition:"all 0.3s",
+          fontFamily:"'Playfair Display',serif",fontSize:active?23:18,fontWeight:900,
+          color:(active||ringing)?"#fff":t.textPrimary,
+          fontVariantNumeric:"tabular-nums",
+          animation:ringing?"alarmPulse 0.9s ease-in-out infinite":"none",
+        }}>
+          {ringing?<><span style={{fontSize:19}}>🔔</span>Stop</>:active?<><span style={{fontSize:17}}>⏱</span>{fmt(remaining)}</>:<span style={{fontSize:30}}>⏱</span>}
+        </button>
+      </div>
 
       {/* Panel */}
       {open&&(
