@@ -1467,6 +1467,7 @@ Only use spices from provided list. Prioritize health.${veggies.length>0?" Provi
         html{scroll-behavior:smooth;-webkit-text-size-adjust:100%;text-size-adjust:100%}
         body{background:${t.pageBg};transition:background 0.5s;overflow-x:hidden;font-family:'Plus Jakarta Sans',sans-serif}
         input::placeholder{color:${dark?"#8a9ab8":"#b89878"};opacity:1}
+        html,body,#root{width:100%;margin:0;padding:0;display:block;text-align:initial}
         input{color:${t.textPrimary}}
         ::selection{background:${t.accent}40}
         ::-webkit-scrollbar{width:5px}
