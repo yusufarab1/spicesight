@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">SpiceSight</string>
+    <string name="title_activity_main">SpiceSight</string>
+    <string name="package_name">com.spicesight.app</string>
+    <string name="custom_url_scheme">com.spicesight.app</string>
+</resources>
