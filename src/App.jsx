@@ -1134,6 +1134,7 @@ function AuthModal({ dark, t, onClose, onAuth }) {
           options: {
             redirectTo: "com.spicesight.app://auth-callback",
             skipBrowserRedirect: true,
+            queryParams: { prompt: "select_account" },
           },
         });
         if(error) throw error;
@@ -1142,7 +1143,10 @@ function AuthModal({ dark, t, onClose, onAuth }) {
       } else {
         const { error } = await supabase.auth.signInWithOAuth({
           provider: "google",
-          options: { redirectTo: window.location.origin },
+          options: {
+            redirectTo: window.location.origin,
+            queryParams: { prompt: "select_account" },
+          },
         });
         if(error) throw error;
         // Page redirects to Google — no further action here
