@@ -12,7 +12,9 @@ const IS_NATIVE = typeof window !== "undefined" && !!window.Capacitor?.isNativeP
 // rules in the database, not from hiding these.
 const SUPABASE_URL = "https://rvubqpalotjqbtwrifhn.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_H4QHaNUJxg9oVFPs7xnahg_nltUwi-i";
-const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  auth: { flowType: "pkce", detectSessionInUrl: true },
+});
 
 
 // ─── Data ─────────────────────────────────────────────────────────────────────
@@ -1338,10 +1340,23 @@ export default function SpiceSight() {
       if(!url?.includes("auth-callback")) return;
       try { await Browser.close(); } catch {}
       try {
+        // PKCE flow: ?code=...
         const code = new URL(url).searchParams.get("code");
         if(code) {
           await supabase.auth.exchangeCodeForSession(code);
-          setShowAuth(false); // onAuthStateChange sets the user
+          setShowAuth(false);
+          return;
+        }
+        // Implicit flow fallback: #access_token=...&refresh_token=...
+        const hash = url.split("#")[1];
+        if(hash) {
+          const p = new URLSearchParams(hash);
+          const access_token = p.get("access_token");
+          const refresh_token = p.get("refresh_token");
+          if(access_token && refresh_token) {
+            await supabase.auth.setSession({ access_token, refresh_token });
+            setShowAuth(false);
+          }
         }
       } catch {}
     });
