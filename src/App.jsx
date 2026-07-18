@@ -438,6 +438,29 @@ function playTimerChime() {
   try { navigator.vibrate?.([200,100,200,100,400]); } catch {}
 }
 
+// Repeating alarm: chimes every ~1.8s for up to 15 seconds, or until stopped.
+// Returns a stop function.
+function startAlarmRing(onEnd) {
+  let stopped = false;
+  let plays = 0;
+  playTimerChime();
+  const id = setInterval(() => {
+    plays++;
+    if (stopped || plays >= 8) {
+      clearInterval(id);
+      if (!stopped) onEnd?.();
+      return;
+    }
+    playTimerChime();
+  }, 1800);
+  return () => {
+    if (stopped) return;
+    stopped = true;
+    clearInterval(id);
+    onEnd?.();
+  };
+}
+
 // ─── Cooking Steps with timers ────────────────────────────────────────────────
 function CookingSteps({ steps, t }) {
   const [done,   setDone]   = useState([]);
@@ -456,8 +479,12 @@ function CookingSteps({ steps, t }) {
     const m=Math.floor(secs/60), s=secs%60;
     return m>0?`${m}:${String(s).padStart(2,"0")}`:`0:${String(secs).padStart(2,"0")}`;
   }
+  const ringRef = useRef(null);
+  const stopRing = () => { if(ringRef.current){ ringRef.current(); ringRef.current=null; return true; } return false; };
+
   function startTimer(e, i, initial) {
     e.stopPropagation();
+    if(stopRing()) return; // first tap after the alarm just silences it
     setTimers(prev=>{
       const cur=prev[i]||{remaining:initial,running:false,initial};
       if(cur.remaining===0) return{...prev,[i]:{remaining:initial,running:true,initial}};
@@ -466,6 +493,7 @@ function CookingSteps({ steps, t }) {
   }
   function resetTimer(e, i, initial) {
     e.stopPropagation();
+    stopRing();
     setTimers(prev=>({...prev,[i]:{remaining:initial,running:false,initial}}));
   }
 
@@ -483,11 +511,14 @@ function CookingSteps({ steps, t }) {
             changed=true;
           }
         });
-        if(finished) playTimerChime();
+        if(finished){
+          ringRef.current?.();
+          ringRef.current = startAlarmRing(()=>{ ringRef.current=null; });
+        }
         return changed?next:prev;
       });
     },1000);
-    return()=>clearInterval(id);
+    return()=>{ clearInterval(id); ringRef.current?.(); };
   },[]);
 
   if(!steps||steps.length===0) return null;
@@ -618,17 +649,36 @@ function QuickTimer({ dark, t }) {
   const [initial, setInitial] = useState(0);
   const [running, setRunning] = useState(false);
   const [customMin, setCustomMin] = useState("");
+  const [ringing, setRinging] = useState(false);
+  const ringRef = useRef(null);
+
+  const stopRing = () => {
+    ringRef.current?.();
+    ringRef.current = null;
+    setRinging(false);
+  };
 
   useEffect(()=>{
     if(!running) return;
     const id=setInterval(()=>{
       setRemaining(r=>{
-        if(r<=1){ setRunning(false); playTimerChime(); return 0; }
+        if(r<=1){
+          // Finished: alarm rings for up to 15s (or until Stop), then idle
+          setRunning(false);
+          setInitial(0);
+          setRinging(true);
+          ringRef.current?.();
+          ringRef.current = startAlarmRing(()=>{ ringRef.current=null; setRinging(false); });
+          return 0;
+        }
         return r-1;
       });
     },1000);
     return ()=>clearInterval(id);
   },[running]);
+
+  // Clean up the alarm if the component ever unmounts mid-ring
+  useEffect(()=>()=>{ ringRef.current?.(); },[]);
 
   const start=(mins)=>{
     const secs=Math.round(mins*60);
@@ -637,23 +687,24 @@ function QuickTimer({ dark, t }) {
   };
   const fmt=s=>`${Math.floor(s/60)}:${String(s%60).padStart(2,"0")}`;
   const active=remaining>0||running;
-  const done=initial>0&&remaining===0&&!running;
 
   return (
     <>
       {/* Floating button */}
-      <button onClick={()=>setOpen(o=>!o)} aria-label="Quick timer" style={{
+      <button onClick={()=>{ if(ringing){stopRing();return;} setOpen(o=>!o); }} aria-label={ringing?"Stop alarm":"Quick timer"} style={{
         position:"fixed",bottom:24,right:24,zIndex:9000,
-        minWidth:56,height:56,borderRadius:99,padding:active?"0 18px":0,
+        minWidth:56,height:56,borderRadius:99,padding:(active||ringing)?"0 18px":0,
         display:"flex",alignItems:"center",justifyContent:"center",gap:8,
-        background:done?"#2d7a3a":active?`linear-gradient(135deg,${t.accent},${t.accentLight})`:(dark?"#1a2030":"#fff"),
-        border:`2px solid ${done?"#2d7a3a":active?t.accent:t.cardBorder}`,
-        boxShadow:active?`0 8px 28px ${done?"#2d7a3a":t.accent}66`:"0 8px 24px rgba(0,0,0,0.2)",
+        background:ringing?"#e05252":active?`linear-gradient(135deg,${t.accent},${t.accentLight})`:(dark?"#1a2030":"#fff"),
+        border:`2px solid ${ringing?"#e05252":active?t.accent:t.cardBorder}`,
+        boxShadow:ringing?"0 8px 32px #e0525288":active?`0 8px 28px ${t.accent}66`:"0 8px 24px rgba(0,0,0,0.2)",
         cursor:"pointer",transition:"all 0.3s",
-        fontFamily:"'Playfair Display',serif",fontSize:active?18:24,fontWeight:900,
-        color:active?"#fff":t.textPrimary,
+        fontFamily:"'Playfair Display',serif",fontSize:active?22:ringing?18:24,fontWeight:900,
+        color:(active||ringing)?"#fff":t.textPrimary,
+        fontVariantNumeric:"tabular-nums",
+        animation:ringing?"alarmPulse 0.9s ease-in-out infinite":"none",
       }}>
-        {done?"✅":active?<><span style={{fontSize:16}}>⏱</span>{fmt(remaining)}</>:"⏱"}
+        {ringing?<><span style={{fontSize:18}}>🔔</span>Stop</>:active?<><span style={{fontSize:17}}>⏱</span>{fmt(remaining)}</>:"⏱"}
       </button>
 
       {/* Panel */}
@@ -670,25 +721,31 @@ function QuickTimer({ dark, t }) {
           }}>
             <p style={{fontFamily:"'Playfair Display',serif",fontSize:18,fontWeight:900,color:t.textPrimary,marginBottom:14}}>⏱ Quick Timer</p>
 
-            {active?(
+            {ringing?(
               <div style={{textAlign:"center"}}>
-                <p style={{fontFamily:"'Playfair Display',serif",fontSize:44,fontWeight:900,color:done?"#2d7a3a":t.accent,fontVariantNumeric:"tabular-nums",marginBottom:4}}>
-                  {done?"Done!":fmt(remaining)}
+                <p style={{fontSize:40,marginBottom:6}}>🔔</p>
+                <p style={{fontFamily:"'Playfair Display',serif",fontSize:26,fontWeight:900,color:"#e05252",marginBottom:14}}>Time's Up!</p>
+                <button onClick={stopRing} style={{width:"100%",padding:"14px",borderRadius:12,border:"none",cursor:"pointer",background:"#e05252",color:"#fff",fontFamily:"'Playfair Display',serif",fontSize:17,fontWeight:700,boxShadow:"0 6px 24px #e0525266"}}>
+                  Stop Alarm
+                </button>
+              </div>
+            ):active?(
+              <div style={{textAlign:"center"}}>
+                <p style={{fontFamily:"'Playfair Display',serif",fontSize:54,fontWeight:900,color:t.accent,fontVariantNumeric:"tabular-nums",marginBottom:6}}>
+                  {fmt(remaining)}
                 </p>
                 {/* progress */}
-                {!done&&initial>0&&(
+                {initial>0&&(
                   <div style={{height:5,background:t.cardBorder,borderRadius:99,overflow:"hidden",marginBottom:14}}>
                     <div style={{height:"100%",width:`${((initial-remaining)/initial)*100}%`,background:`linear-gradient(90deg,${t.accent},${t.accentLight})`,borderRadius:99,transition:"width 1s linear"}}/>
                   </div>
                 )}
                 <div style={{display:"flex",gap:8,justifyContent:"center"}}>
-                  {!done&&(
-                    <button onClick={()=>setRunning(r=>!r)} style={{flex:1,padding:"10px",borderRadius:10,border:"none",cursor:"pointer",background:running?t.mutedBg:`linear-gradient(135deg,${t.accent},${t.accentLight})`,color:running?t.textPrimary:"#fff",fontFamily:"'Plus Jakarta Sans',sans-serif",fontSize:13,fontWeight:700}}>
-                      {running?"⏸ Pause":"▶ Resume"}
-                    </button>
-                  )}
+                  <button onClick={()=>setRunning(r=>!r)} style={{flex:1,padding:"10px",borderRadius:10,border:"none",cursor:"pointer",background:running?t.mutedBg:`linear-gradient(135deg,${t.accent},${t.accentLight})`,color:running?t.textPrimary:"#fff",fontFamily:"'Plus Jakarta Sans',sans-serif",fontSize:13,fontWeight:700}}>
+                    {running?"⏸ Pause":"▶ Resume"}
+                  </button>
                   <button onClick={()=>{setRunning(false);setRemaining(0);setInitial(0);}} style={{flex:1,padding:"10px",borderRadius:10,cursor:"pointer",background:"transparent",border:`1.5px solid ${t.cardBorder}`,color:t.textMuted,fontFamily:"'Plus Jakarta Sans',sans-serif",fontSize:13,fontWeight:700}}>
-                    {done?"Clear":"↺ Cancel"}
+                    ↺ Cancel
                   </button>
                 </div>
               </div>
@@ -1487,6 +1544,7 @@ Only use spices from provided list. Prioritize health.${veggies.length>0?" Provi
         body{background:${t.pageBg};transition:background 0.5s;overflow-x:hidden;font-family:'Plus Jakarta Sans',sans-serif}
         input::placeholder{color:${dark?"#8a9ab8":"#b89878"};opacity:1}
         html,body,#root{width:100%;margin:0;padding:0;display:block;text-align:initial}
+        @keyframes alarmPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.09)}}
         input{color:${t.textPrimary}}
         ::selection{background:${t.accent}40}
         ::-webkit-scrollbar{width:5px}
