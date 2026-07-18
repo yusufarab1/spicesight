@@ -705,21 +705,21 @@ function QuickTimer({ dark, t }) {
       <div style={{position:"fixed",bottom:24,right:24,zIndex:9000,display:"flex",flexDirection:"column",alignItems:"center"}}>
         {/* Arched "Timer" label — only in idle state */}
         {!active&&!ringing&&(
-          <svg width="104" height="34" viewBox="0 0 104 34" style={{marginBottom:-6,pointerEvents:"none",overflow:"visible"}}>
+          <svg width="130" height="42" viewBox="0 0 130 42" style={{marginBottom:-7,pointerEvents:"none",overflow:"visible"}}>
             <defs>
-              <path id="timerArc" d="M 10 32 Q 52 -4 94 32" fill="none"/>
+              <path id="timerArc" d="M 12 40 Q 65 -6 118 40" fill="none"/>
             </defs>
             <text style={{
-              fontFamily:"'Playfair Display',serif",fontStyle:"italic",fontWeight:700,
-              fontSize:"17px",letterSpacing:"3px",
+              fontFamily:"'Plus Jakarta Sans',sans-serif",fontWeight:800,
+              fontSize:"21px",letterSpacing:"4px",textTransform:"uppercase",
               fill:dark?"#f0c040":t.accent,
             }}>
-              <textPath href="#timerArc" startOffset="50%" textAnchor="middle">Timer</textPath>
+              <textPath href="#timerArc" startOffset="50%" textAnchor="middle">TIMER</textPath>
             </text>
           </svg>
         )}
         <button onClick={()=>{ if(ringing){stopRing();return;} setOpen(o=>!o); }} aria-label={ringing?"Stop alarm":"Quick timer"} style={{
-          minWidth:(active||ringing)?"auto":66,height:66,borderRadius:99,padding:(active||ringing)?"0 22px":0,
+          minWidth:(active||ringing)?"auto":74,height:74,borderRadius:99,padding:(active||ringing)?"0 22px":0,
           display:"flex",alignItems:"center",justifyContent:"center",gap:8,
           background:ringing?"#e05252":active?`linear-gradient(135deg,${t.accent},${t.accentLight})`:(dark?"#1a2030":"#fff"),
           border:`2px solid ${ringing?"#e05252":active?t.accent:t.cardBorder}`,
@@ -730,7 +730,7 @@ function QuickTimer({ dark, t }) {
           fontVariantNumeric:"tabular-nums",
           animation:ringing?"alarmPulse 0.9s ease-in-out infinite":"none",
         }}>
-          {ringing?<><span style={{fontSize:19}}>🔔</span>Stop</>:active?<><span style={{fontSize:17}}>⏱</span>{fmt(remaining)}</>:<span style={{fontSize:30}}>⏱</span>}
+          {ringing?<><span style={{fontSize:19}}>🔔</span>Stop</>:active?<><span style={{fontSize:17}}>⏱</span>{fmt(remaining)}</>:<span style={{fontSize:38}}>⏱</span>}
         </button>
       </div>
 
