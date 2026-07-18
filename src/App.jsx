@@ -2619,3 +2619,4 @@ Only use spices from provided list. Prioritize health.${veggies.length>0?" Provi
       </div>
     </>
   );
+}
