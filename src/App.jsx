@@ -1,5 +1,10 @@
 import { useState, useRef, useEffect } from "react";
 import { createClient } from "@supabase/supabase-js";
+import { Browser } from "@capacitor/browser";
+import { App as CapApp } from "@capacitor/app";
+
+// True when running inside the Capacitor native shell (Android/iOS)
+const IS_NATIVE = typeof window !== "undefined" && !!window.Capacitor?.isNativePlatform?.();
 
 // ─── Supabase ─────────────────────────────────────────────────────────────────
 // These two values are SAFE to have in frontend code (unlike the Gemini key):
@@ -1119,12 +1124,27 @@ function AuthModal({ dark, t, onClose, onAuth }) {
   async function googleSignIn() {
     setBusy(true); setErr("");
     try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: { redirectTo: window.location.origin },
-      });
-      if(error) throw error;
-      // Page redirects to Google — no further action here
+      if(IS_NATIVE) {
+        // Native app: Google blocks OAuth inside WebViews, so open the system
+        // browser and come back via our deep link (com.spicesight.app://auth-callback)
+        const { data, error } = await supabase.auth.signInWithOAuth({
+          provider: "google",
+          options: {
+            redirectTo: "com.spicesight.app://auth-callback",
+            skipBrowserRedirect: true,
+          },
+        });
+        if(error) throw error;
+        await Browser.open({ url: data.url });
+        setBusy(false); // session arrives via the appUrlOpen listener
+      } else {
+        const { error } = await supabase.auth.signInWithOAuth({
+          provider: "google",
+          options: { redirectTo: window.location.origin },
+        });
+        if(error) throw error;
+        // Page redirects to Google — no further action here
+      }
     } catch(e) {
       setErr(e.message||"Google sign-in failed.");
       setBusy(false);
@@ -1310,6 +1330,23 @@ export default function SpiceSight() {
     if (!meta) { meta = document.createElement('meta'); meta.name = 'viewport'; document.head.appendChild(meta); }
     meta.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no';
   }, []);
+
+  // ─── Native deep-link: complete Google OAuth when the browser sends us back
+  useEffect(()=>{
+    if(!IS_NATIVE) return;
+    const sub = CapApp.addListener("appUrlOpen", async ({ url }) => {
+      if(!url?.includes("auth-callback")) return;
+      try { await Browser.close(); } catch {}
+      try {
+        const code = new URL(url).searchParams.get("code");
+        if(code) {
+          await supabase.auth.exchangeCodeForSession(code);
+          setShowAuth(false); // onAuthStateChange sets the user
+        }
+      } catch {}
+    });
+    return ()=>{ sub.then?.(s=>s.remove()) ?? sub.remove?.(); };
+  },[]);
 
   // ─── Auth session: restore on load, listen for changes ────────────────────
   useEffect(()=>{
