@@ -739,7 +739,7 @@ function QuickTimer({ dark, t }) {
         <>
           {!active&&!ringing&&<div style={{position:"fixed",inset:0,zIndex:8999}} onClick={()=>setOpen(false)}/>}
           <div style={{
-            position:"fixed",bottom:92,right:24,zIndex:9001,width:280,
+            position:"fixed",bottom:150,right:24,zIndex:9001,width:280,
             background:dark?"#1a2030":"#fff",
             border:`2px solid ${dark?"#3a4660":t.cardBorder}`,
             borderRadius:20,padding:20,
