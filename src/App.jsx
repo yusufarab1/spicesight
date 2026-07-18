@@ -1377,7 +1377,10 @@ export default function SpiceSight() {
         setUser(verified.user);
       }
     });
-    const {data:sub} = supabase.auth.onAuthStateChange((_e,session)=>{
+    const {data:sub} = supabase.auth.onAuthStateChange((event,session)=>{
+      // Startup restore is handled above WITH server verification —
+      // don't let the cached-session event bypass it
+      if(event==="INITIAL_SESSION") return;
       setUser(session?.user||null);
     });
     return ()=>sub?.subscription?.unsubscribe();
