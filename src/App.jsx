@@ -693,6 +693,7 @@ function QuickTimer({ dark, t }) {
   const startSecs=(totalSecs)=>{
     if(totalSecs<5) return; // minimum 5 seconds
     setInitial(totalSecs); setRemaining(totalSecs); setRunning(true); setCustomMin("");
+    setOpen(false); // panel steps aside — countdown lives on the pill button
   };
   const start=(mins)=>startSecs(Math.round(mins*60));
   const customSecs=parseCustom(customMin);
