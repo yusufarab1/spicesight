@@ -680,27 +680,37 @@ function QuickTimer({ dark, t }) {
   // Clean up the alarm if the component ever unmounts mid-ring
   useEffect(()=>()=>{ ringRef.current?.(); },[]);
 
-  const start=(mins)=>{
-    const secs=Math.round(mins*60);
-    if(secs<5) return; // minimum 5 seconds
-    setInitial(secs); setRemaining(secs); setRunning(true); setCustomMin("");
+  // Kitchen notation: "2" = 2 min, "2.30" = 2 min 30 sec, ".10" = 10 sec
+  const parseCustom=(v)=>{
+    const s=String(v||"").trim();
+    if(!/^\d*\.?\d*$/.test(s)||s===""||s===".") return 0;
+    const [mPart,sPart=""]=s.split(".");
+    const mins=parseInt(mPart||"0",10)||0;
+    let secs=sPart?(parseInt(sPart.slice(0,2),10)||0):0;
+    if(secs>59) secs=59;
+    return mins*60+secs;
   };
-  const customSecs=customMin>0?Math.round(Number(customMin)*60):0;
+  const startSecs=(totalSecs)=>{
+    if(totalSecs<5) return; // minimum 5 seconds
+    setInitial(totalSecs); setRemaining(totalSecs); setRunning(true); setCustomMin("");
+  };
+  const start=(mins)=>startSecs(Math.round(mins*60));
+  const customSecs=parseCustom(customMin);
   const fmt=s=>`${Math.floor(s/60)}:${String(s%60).padStart(2,"0")}`;
   const active=remaining>0||running;
 
   return (
     <>
       {/* Floating button */}
-      <button onClick={()=>{ if(ringing){stopRing();return;} setOpen(o=>!o); }} aria-label={ringing?"Stop alarm":"Quick timer"} style={{
+      <button onClick={()=>{ if(ringing){stopRing();return;} setOpen(o=>!o); }} aria-label={ringing?"Stop alarm":"Quick timer"} title={ringing?"Stop alarm":"Quick timer — set a timer without a recipe"} style={{
         position:"fixed",bottom:24,right:24,zIndex:9000,
-        minWidth:56,height:56,borderRadius:99,padding:(active||ringing)?"0 18px":0,
+        minWidth:62,height:62,borderRadius:99,padding:(active||ringing)?"0 20px":0,
         display:"flex",alignItems:"center",justifyContent:"center",gap:8,
         background:ringing?"#e05252":active?`linear-gradient(135deg,${t.accent},${t.accentLight})`:(dark?"#1a2030":"#fff"),
         border:`2px solid ${ringing?"#e05252":active?t.accent:t.cardBorder}`,
         boxShadow:ringing?"0 8px 32px #e0525288":active?`0 8px 28px ${t.accent}66`:"0 8px 24px rgba(0,0,0,0.2)",
         cursor:"pointer",transition:"all 0.3s",
-        fontFamily:"'Playfair Display',serif",fontSize:active?22:ringing?18:24,fontWeight:900,
+        fontFamily:"'Playfair Display',serif",fontSize:active?23:ringing?18:30,fontWeight:900,
         color:(active||ringing)?"#fff":t.textPrimary,
         fontVariantNumeric:"tabular-nums",
         animation:ringing?"alarmPulse 0.9s ease-in-out infinite":"none",
@@ -771,13 +781,13 @@ function QuickTimer({ dark, t }) {
                 <p style={{fontSize:11,letterSpacing:1.5,color:t.textFaint,textTransform:"uppercase",fontWeight:700,marginBottom:8}}>Or set your own</p>
                 <div style={{display:"flex",gap:8,alignItems:"stretch"}}>
                   <div style={{flex:1,display:"flex",alignItems:"center",gap:6,background:dark?"#0a0e16":t.inputBg,border:`2px solid ${dark?"#4a5a78":t.inputBorder}`,borderRadius:10,padding:"0 12px",minWidth:0}}>
-                    <input type="number" min="1" max="180" placeholder="0" inputMode="numeric"
-                      value={customMin} onChange={e=>setCustomMin(e.target.value)}
-                      onKeyDown={e=>{if(e.key==="Enter"&&customMin>0)start(Number(customMin));}}
+                    <input type="text" placeholder="0" inputMode="decimal"
+                      value={customMin} onChange={e=>{const v=e.target.value;if(/^\d*\.?\d*$/.test(v))setCustomMin(v);}}
+                      onKeyDown={e=>{if(e.key==="Enter"&&customSecs>=5)startSecs(customSecs);}}
                       style={{width:"100%",minWidth:0,background:"transparent",border:"none",padding:"11px 0",color:dark?"#fff":t.textPrimary,fontFamily:"'Playfair Display',serif",fontSize:20,fontWeight:700,outline:"none",textAlign:"center"}}/>
-                    <span style={{fontSize:12,fontWeight:600,color:t.textMuted,flexShrink:0}}>min</span>
+                    <span style={{fontSize:11,fontWeight:600,color:t.textMuted,flexShrink:0,lineHeight:1.3,textAlign:"right"}}>min<br/><span style={{opacity:0.7}}>.sec</span></span>
                   </div>
-                  <button onClick={()=>customMin>0&&start(Number(customMin))} style={{padding:"0 18px",borderRadius:10,border:"none",cursor:"pointer",background:`linear-gradient(135deg,${t.accent},${t.accentLight})`,color:"#fff",fontFamily:"'Plus Jakarta Sans',sans-serif",fontSize:13,fontWeight:700}}>
+                  <button onClick={()=>customSecs>=5&&startSecs(customSecs)} style={{padding:"0 18px",borderRadius:10,border:"none",cursor:"pointer",background:`linear-gradient(135deg,${t.accent},${t.accentLight})`,color:"#fff",fontFamily:"'Plus Jakarta Sans',sans-serif",fontSize:13,fontWeight:700}}>
                     Start
                   </button>
                 </div>
