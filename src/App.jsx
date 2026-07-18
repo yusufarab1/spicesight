@@ -415,6 +415,29 @@ function ParticleBurst({particles}) {
   ))}</>;
 }
 
+// ─── Timer chime (shared by step timers and quick timer) ─────────────────────
+function playTimerChime() {
+  try {
+    const ctx = new (window.AudioContext||window.webkitAudioContext)();
+    [[880,0],[1108.7,0.18],[1318.5,0.36]].forEach(([freq,delay])=>{
+      const osc=ctx.createOscillator();
+      const gain=ctx.createGain();
+      osc.type="sine";
+      osc.frequency.value=freq;
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      const t0=ctx.currentTime+delay;
+      gain.gain.setValueAtTime(0,t0);
+      gain.gain.linearRampToValueAtTime(0.35,t0+0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001,t0+0.7);
+      osc.start(t0);
+      osc.stop(t0+0.75);
+    });
+    setTimeout(()=>ctx.close(),1600);
+  } catch {}
+  try { navigator.vibrate?.([200,100,200,100,400]); } catch {}
+}
+
 // ─── Cooking Steps with timers ────────────────────────────────────────────────
 function CookingSteps({ steps, t }) {
   const [done,   setDone]   = useState([]);
@@ -446,29 +469,6 @@ function CookingSteps({ steps, t }) {
     setTimers(prev=>({...prev,[i]:{remaining:initial,running:false,initial}}));
   }
 
-  // Pleasant three-note chime, generated in code — no audio file needed
-  function playTimerChime() {
-    try {
-      const ctx = new (window.AudioContext||window.webkitAudioContext)();
-      [[880,0],[1108.7,0.18],[1318.5,0.36]].forEach(([freq,delay])=>{
-        const osc=ctx.createOscillator();
-        const gain=ctx.createGain();
-        osc.type="sine";
-        osc.frequency.value=freq;
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        const t0=ctx.currentTime+delay;
-        gain.gain.setValueAtTime(0,t0);
-        gain.gain.linearRampToValueAtTime(0.35,t0+0.02);
-        gain.gain.exponentialRampToValueAtTime(0.001,t0+0.7);
-        osc.start(t0);
-        osc.stop(t0+0.75);
-      });
-      setTimeout(()=>ctx.close(),1600);
-    } catch {}
-    // Vibrate on phones that support it (Android; iOS ignores silently)
-    try { navigator.vibrate?.([200,100,200,100,400]); } catch {}
-  }
 
   useEffect(()=>{
     const id=setInterval(()=>{
@@ -608,6 +608,121 @@ function CookingSteps({ steps, t }) {
         </div>
       </div>
     </div>
+  );
+}
+
+// ─── Quick Timer (standalone, no recipe needed) ───────────────────────────────
+function QuickTimer({ dark, t }) {
+  const [open, setOpen] = useState(false);
+  const [remaining, setRemaining] = useState(0);
+  const [initial, setInitial] = useState(0);
+  const [running, setRunning] = useState(false);
+  const [customMin, setCustomMin] = useState("");
+
+  useEffect(()=>{
+    if(!running) return;
+    const id=setInterval(()=>{
+      setRemaining(r=>{
+        if(r<=1){ setRunning(false); playTimerChime(); return 0; }
+        return r-1;
+      });
+    },1000);
+    return ()=>clearInterval(id);
+  },[running]);
+
+  const start=(mins)=>{
+    const secs=Math.round(mins*60);
+    if(secs<=0) return;
+    setInitial(secs); setRemaining(secs); setRunning(true); setCustomMin("");
+  };
+  const fmt=s=>`${Math.floor(s/60)}:${String(s%60).padStart(2,"0")}`;
+  const active=remaining>0||running;
+  const done=initial>0&&remaining===0&&!running;
+
+  return (
+    <>
+      {/* Floating button */}
+      <button onClick={()=>setOpen(o=>!o)} aria-label="Quick timer" style={{
+        position:"fixed",bottom:24,right:24,zIndex:9000,
+        minWidth:56,height:56,borderRadius:99,padding:active?"0 18px":0,
+        display:"flex",alignItems:"center",justifyContent:"center",gap:8,
+        background:done?"#2d7a3a":active?`linear-gradient(135deg,${t.accent},${t.accentLight})`:(dark?"#1a2030":"#fff"),
+        border:`2px solid ${done?"#2d7a3a":active?t.accent:t.cardBorder}`,
+        boxShadow:active?`0 8px 28px ${done?"#2d7a3a":t.accent}66`:"0 8px 24px rgba(0,0,0,0.2)",
+        cursor:"pointer",transition:"all 0.3s",
+        fontFamily:"'Playfair Display',serif",fontSize:active?18:24,fontWeight:900,
+        color:active?"#fff":t.textPrimary,
+      }}>
+        {done?"✅":active?<><span style={{fontSize:16}}>⏱</span>{fmt(remaining)}</>:"⏱"}
+      </button>
+
+      {/* Panel */}
+      {open&&(
+        <>
+          <div style={{position:"fixed",inset:0,zIndex:8999}} onClick={()=>setOpen(false)}/>
+          <div style={{
+            position:"fixed",bottom:92,right:24,zIndex:9001,width:280,
+            background:dark?"#1a2030":"#fff",
+            border:`2px solid ${dark?"#3a4660":t.cardBorder}`,
+            borderRadius:20,padding:20,
+            boxShadow:"0 20px 56px rgba(0,0,0,0.35)",
+            animation:"fadeUp 0.25s ease both",
+          }}>
+            <p style={{fontFamily:"'Playfair Display',serif",fontSize:18,fontWeight:900,color:t.textPrimary,marginBottom:14}}>⏱ Quick Timer</p>
+
+            {active?(
+              <div style={{textAlign:"center"}}>
+                <p style={{fontFamily:"'Playfair Display',serif",fontSize:44,fontWeight:900,color:done?"#2d7a3a":t.accent,fontVariantNumeric:"tabular-nums",marginBottom:4}}>
+                  {done?"Done!":fmt(remaining)}
+                </p>
+                {/* progress */}
+                {!done&&initial>0&&(
+                  <div style={{height:5,background:t.cardBorder,borderRadius:99,overflow:"hidden",marginBottom:14}}>
+                    <div style={{height:"100%",width:`${((initial-remaining)/initial)*100}%`,background:`linear-gradient(90deg,${t.accent},${t.accentLight})`,borderRadius:99,transition:"width 1s linear"}}/>
+                  </div>
+                )}
+                <div style={{display:"flex",gap:8,justifyContent:"center"}}>
+                  {!done&&(
+                    <button onClick={()=>setRunning(r=>!r)} style={{flex:1,padding:"10px",borderRadius:10,border:"none",cursor:"pointer",background:running?t.mutedBg:`linear-gradient(135deg,${t.accent},${t.accentLight})`,color:running?t.textPrimary:"#fff",fontFamily:"'Plus Jakarta Sans',sans-serif",fontSize:13,fontWeight:700}}>
+                      {running?"⏸ Pause":"▶ Resume"}
+                    </button>
+                  )}
+                  <button onClick={()=>{setRunning(false);setRemaining(0);setInitial(0);}} style={{flex:1,padding:"10px",borderRadius:10,cursor:"pointer",background:"transparent",border:`1.5px solid ${t.cardBorder}`,color:t.textMuted,fontFamily:"'Plus Jakarta Sans',sans-serif",fontSize:13,fontWeight:700}}>
+                    {done?"Clear":"↺ Cancel"}
+                  </button>
+                </div>
+              </div>
+            ):(
+              <>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:12}}>
+                  {[1,3,5,10,15,30].map(m=>(
+                    <button key={m} onClick={()=>start(m)} style={{
+                      padding:"12px 0",borderRadius:12,cursor:"pointer",
+                      background:t.inputBg,border:`1.5px solid ${t.cardBorder}`,
+                      color:t.textPrimary,fontFamily:"'Playfair Display',serif",
+                      fontSize:16,fontWeight:700,transition:"all 0.2s",
+                    }}
+                    onMouseEnter={e=>{e.currentTarget.style.borderColor=t.accent;e.currentTarget.style.color=t.accent;}}
+                    onMouseLeave={e=>{e.currentTarget.style.borderColor=t.cardBorder;e.currentTarget.style.color=t.textPrimary;}}>
+                      {m}m
+                    </button>
+                  ))}
+                </div>
+                <div style={{display:"flex",gap:8}}>
+                  <input type="number" min="1" max="180" placeholder="Custom min"
+                    value={customMin} onChange={e=>setCustomMin(e.target.value)}
+                    onKeyDown={e=>{if(e.key==="Enter"&&customMin>0)start(Number(customMin));}}
+                    style={{flex:1,minWidth:0,background:dark?"#0a0e16":t.inputBg,border:`2px solid ${dark?"#4a5a78":t.inputBorder}`,borderRadius:10,padding:"10px 12px",color:dark?"#fff":t.textPrimary,fontFamily:"'Plus Jakarta Sans',sans-serif",fontSize:14,fontWeight:600,outline:"none"}}/>
+                  <button onClick={()=>customMin>0&&start(Number(customMin))} style={{padding:"10px 16px",borderRadius:10,border:"none",cursor:"pointer",background:`linear-gradient(135deg,${t.accent},${t.accentLight})`,color:"#fff",fontFamily:"'Plus Jakarta Sans',sans-serif",fontSize:13,fontWeight:700}}>
+                    Start
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </>
+      )}
+    </>
   );
 }
 
@@ -2359,6 +2474,9 @@ Only use spices from provided list. Prioritize health.${veggies.length>0?" Provi
             </div>
           )}
           </>}
+
+          {/* ── QUICK TIMER (floating, always available) ── */}
+          <QuickTimer dark={dark} t={t}/>
 
           {/* ── AUTH MODAL ── */}
           {showAuth&&(
