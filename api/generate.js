@@ -121,8 +121,11 @@ export default async function handler(req, res) {
         if (!payload || payload === '[DONE]') continue;
         try {
           const json = JSON.parse(payload);
-          const text = json?.candidates?.[0]?.content?.parts?.[0]?.text;
-          if (text) res.write(text);
+          const parts = json?.candidates?.[0]?.content?.parts || [];
+          for (const p of parts) {
+            // Skip "thinking" parts — only stream the actual answer text
+            if (p?.text && !p?.thought) res.write(p.text);
+          }
         } catch {}
       }
     }

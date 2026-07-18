@@ -1406,10 +1406,29 @@ Only use spices from provided list. Prioritize health.${veggies.length>0?" Provi
         setStreamPct(Math.min(Math.round((buffer.length/EXPECTED_CHARS)*100),95));
       }
 
-      const match=buffer.match(/\{[\s\S]*\}/);
-      if(!match) throw new Error("The AI returned an unexpected format. Try again.");
+      // Extract the recipe JSON. Greedy match first; if that fails (extra text
+      // around the JSON), fall back to a balanced-brace scan for the first
+      // complete object.
+      let parsed=null;
+      const greedy=buffer.match(/\{[\s\S]*\}/);
+      if(greedy){ try{ parsed=JSON.parse(greedy[0]); }catch{} }
+      if(!parsed){
+        const start=buffer.indexOf("{");
+        if(start!==-1){
+          let depth=0,inStr=false,esc=false;
+          for(let i=start;i<buffer.length;i++){
+            const ch=buffer[i];
+            if(esc){esc=false;continue;}
+            if(ch==="\\"){esc=true;continue;}
+            if(ch==='"'){inStr=!inStr;continue;}
+            if(inStr)continue;
+            if(ch==="{")depth++;
+            else if(ch==="}"){depth--;if(depth===0){try{parsed=JSON.parse(buffer.slice(start,i+1));}catch{}break;}}
+          }
+        }
+      }
+      if(!parsed) throw new Error("The AI returned an unexpected format. Try again.");
 
-      const parsed=JSON.parse(match[0]);
       setStreamPct(100);
       setResult(parsed);
       setScreen("results");
