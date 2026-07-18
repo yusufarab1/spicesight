@@ -59,11 +59,12 @@ export default async function handler(req, res) {
   const PRIMARY = 'gemini-3-flash-preview';
   const FALLBACK = 'gemini-flash-lite-latest';
 
+  // Key travels in a header, not the URL — URLs end up in logs far more often
   const callGemini = (model) => fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?alt=sse&key=${apiKey}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?alt=sse`,
     {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
       body: JSON.stringify({
         contents: [{ parts: [{ text: prompt }] }],
         generationConfig: {
