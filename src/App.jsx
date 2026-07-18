@@ -2223,6 +2223,18 @@ Only use spices from provided list. Prioritize health.${veggies.length>0?" Provi
                   >+ {s}</button>
                 ))}
               </div>
+              {spices.length>0&&(
+                <div style={{display:"flex"}}>
+                  <button onClick={()=>scrollToStep(refVeggies,0)} style={{
+                    display:"flex",alignItems:"center",gap:6,marginLeft:"auto",marginTop:16,
+                    background:`linear-gradient(135deg,${t.accent},${t.accentLight})`,
+                    border:"none",borderRadius:99,padding:"9px 18px",cursor:"pointer",
+                    fontFamily:"'Plus Jakarta Sans',sans-serif",fontSize:13,fontWeight:700,
+                    color:"#fff",boxShadow:`0 4px 16px ${t.accent}44`,
+                    whiteSpace:"nowrap",
+                  }}>Continue to Veggies →</button>
+                </div>
+              )}
             </div>
 
             <div style={{height:"1.5px",background:`linear-gradient(90deg,transparent,${t.cardBorder},transparent)`,margin:"8px 0"}}/>
@@ -2280,6 +2292,16 @@ Only use spices from provided list. Prioritize health.${veggies.length>0?" Provi
                   >+ {v}</button>
                 ))}
               </div>
+              <div style={{display:"flex"}}>
+                <button onClick={()=>scrollToStep(refFlavor,0)} style={{
+                    display:"flex",alignItems:"center",gap:6,marginLeft:"auto",marginTop:16,
+                    background:`linear-gradient(135deg,${t.accent},${t.accentLight})`,
+                    border:"none",borderRadius:99,padding:"9px 18px",cursor:"pointer",
+                    fontFamily:"'Plus Jakarta Sans',sans-serif",fontSize:13,fontWeight:700,
+                    color:"#fff",boxShadow:`0 4px 16px ${t.accent}44`,
+                    whiteSpace:"nowrap",
+                  }}>{veggies.length>0?"Continue to Flavor →":"Skip to Flavor →"}</button>
+              </div>
             </div>
 
             <div style={{height:"1.5px",background:`linear-gradient(90deg,transparent,${t.cardBorder},transparent)`,margin:"8px 0"}}/>
@@ -2327,6 +2349,16 @@ Only use spices from provided list. Prioritize health.${veggies.length>0?" Provi
                   <button onClick={()=>setFlavorProfile(null)} style={{marginLeft:"auto",background:"none",border:"none",cursor:"pointer",fontSize:18,color:"#9b55e0",lineHeight:1,padding:0}}>×</button>
                 </div>
               )}
+              <div style={{display:"flex"}}>
+                <button onClick={()=>scrollToStep(refGenerate,0)} style={{
+                    display:"flex",alignItems:"center",gap:6,marginLeft:"auto",marginTop:16,
+                    background:`linear-gradient(135deg,${t.accent},${t.accentLight})`,
+                    border:"none",borderRadius:99,padding:"9px 18px",cursor:"pointer",
+                    fontFamily:"'Plus Jakarta Sans',sans-serif",fontSize:13,fontWeight:700,
+                    color:"#fff",boxShadow:`0 4px 16px ${t.accent}44`,
+                    whiteSpace:"nowrap",
+                  }}>{flavorProfile?"Continue to Generate →":"Skip to Generate →"}</button>
+              </div>
             </div>
 
             {/* SERVINGS */}
