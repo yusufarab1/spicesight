@@ -694,26 +694,32 @@ function QuickTimer({ dark, t }) {
               </div>
             ):(
               <>
-                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:12}}>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:14}}>
                   {[1,3,5,10,15,30].map(m=>(
                     <button key={m} onClick={()=>start(m)} style={{
                       padding:"12px 0",borderRadius:12,cursor:"pointer",
                       background:t.inputBg,border:`1.5px solid ${t.cardBorder}`,
                       color:t.textPrimary,fontFamily:"'Playfair Display',serif",
-                      fontSize:16,fontWeight:700,transition:"all 0.2s",
+                      fontWeight:700,transition:"all 0.2s",
+                      display:"flex",alignItems:"baseline",justifyContent:"center",gap:2,
                     }}
                     onMouseEnter={e=>{e.currentTarget.style.borderColor=t.accent;e.currentTarget.style.color=t.accent;}}
                     onMouseLeave={e=>{e.currentTarget.style.borderColor=t.cardBorder;e.currentTarget.style.color=t.textPrimary;}}>
-                      {m}m
+                      <span style={{fontSize:22}}>{m}</span>
+                      <span style={{fontSize:12,fontWeight:600,opacity:0.65}}>min</span>
                     </button>
                   ))}
                 </div>
-                <div style={{display:"flex",gap:8}}>
-                  <input type="number" min="1" max="180" placeholder="Custom min"
-                    value={customMin} onChange={e=>setCustomMin(e.target.value)}
-                    onKeyDown={e=>{if(e.key==="Enter"&&customMin>0)start(Number(customMin));}}
-                    style={{flex:1,minWidth:0,background:dark?"#0a0e16":t.inputBg,border:`2px solid ${dark?"#4a5a78":t.inputBorder}`,borderRadius:10,padding:"10px 12px",color:dark?"#fff":t.textPrimary,fontFamily:"'Plus Jakarta Sans',sans-serif",fontSize:14,fontWeight:600,outline:"none"}}/>
-                  <button onClick={()=>customMin>0&&start(Number(customMin))} style={{padding:"10px 16px",borderRadius:10,border:"none",cursor:"pointer",background:`linear-gradient(135deg,${t.accent},${t.accentLight})`,color:"#fff",fontFamily:"'Plus Jakarta Sans',sans-serif",fontSize:13,fontWeight:700}}>
+                <p style={{fontSize:11,letterSpacing:1.5,color:t.textFaint,textTransform:"uppercase",fontWeight:700,marginBottom:8}}>Or set your own</p>
+                <div style={{display:"flex",gap:8,alignItems:"stretch"}}>
+                  <div style={{flex:1,display:"flex",alignItems:"center",gap:6,background:dark?"#0a0e16":t.inputBg,border:`2px solid ${dark?"#4a5a78":t.inputBorder}`,borderRadius:10,padding:"0 12px",minWidth:0}}>
+                    <input type="number" min="1" max="180" placeholder="0" inputMode="numeric"
+                      value={customMin} onChange={e=>setCustomMin(e.target.value)}
+                      onKeyDown={e=>{if(e.key==="Enter"&&customMin>0)start(Number(customMin));}}
+                      style={{width:"100%",minWidth:0,background:"transparent",border:"none",padding:"11px 0",color:dark?"#fff":t.textPrimary,fontFamily:"'Playfair Display',serif",fontSize:20,fontWeight:700,outline:"none",textAlign:"center"}}/>
+                    <span style={{fontSize:12,fontWeight:600,color:t.textMuted,flexShrink:0}}>min</span>
+                  </div>
+                  <button onClick={()=>customMin>0&&start(Number(customMin))} style={{padding:"0 18px",borderRadius:10,border:"none",cursor:"pointer",background:`linear-gradient(135deg,${t.accent},${t.accentLight})`,color:"#fff",fontFamily:"'Plus Jakarta Sans',sans-serif",fontSize:13,fontWeight:700}}>
                     Start
                   </button>
                 </div>
