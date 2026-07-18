@@ -1102,26 +1102,8 @@ function ShoppingList({ result, meatLabel, veggies, servings, dark, t, onClose }
 
 // ─── Auth Modal ───────────────────────────────────────────────────────────────
 function AuthModal({ dark, t, onClose, onAuth }) {
-  const [mode, setMode] = useState("signin"); // signin | signup
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
-
-  async function submit() {
-    if(!email.trim()||!password) { setErr("Enter your email and password."); return; }
-    setBusy(true); setErr("");
-    try {
-      const fn = mode==="signup"
-        ? supabase.auth.signUp({ email:email.trim(), password })
-        : supabase.auth.signInWithPassword({ email:email.trim(), password });
-      const { data, error } = await fn;
-      if(error) throw error;
-      if(data?.user) { onAuth(data.user); onClose(); }
-    } catch(e) {
-      setErr(e.message||"Something went wrong.");
-    } finally { setBusy(false); }
-  }
 
   async function googleSignIn() {
     setBusy(true); setErr("");
@@ -1149,23 +1131,12 @@ function AuthModal({ dark, t, onClose, onAuth }) {
           },
         });
         if(error) throw error;
-        // Page redirects to Google — no further action here
       }
     } catch(e) {
       setErr(e.message||"Google sign-in failed.");
       setBusy(false);
     }
   }
-
-  const fieldStyle = {
-    width:"100%",
-    background:dark?"#0a0e16":t.inputBg,
-    border:`2px solid ${dark?"#4a5a78":t.inputBorder}`,
-    borderRadius:12,padding:"13px 16px",
-    color:dark?"#ffffff":t.textPrimary,
-    fontFamily:"'Plus Jakarta Sans',sans-serif",fontSize:16,fontWeight:500,
-    outline:"none",boxSizing:"border-box",
-  };
 
   return (
     <div style={{
@@ -1178,76 +1149,46 @@ function AuthModal({ dark, t, onClose, onAuth }) {
         width:"100%",maxWidth:400,
         background:dark?"#1a2030":"#fff",
         border:`2px solid ${dark?"#3a4660":t.cardBorder}`,
-        borderRadius:24,padding:"32px 28px",
+        borderRadius:24,padding:"36px 28px",
         boxShadow:"0 24px 64px rgba(0,0,0,0.4)",
         animation:"badgePop 0.35s cubic-bezier(0.34,1.56,0.64,1) both",
       }}>
-        <div style={{textAlign:"center",marginBottom:24}}>
-          <div style={{fontSize:36,marginBottom:10}}>👨‍🍳</div>
-          <p style={{fontFamily:"'Playfair Display',serif",fontSize:24,fontWeight:900,color:t.textPrimary,marginBottom:6}}>
-            {mode==="signin"?"Welcome Back":"Join SpiceSight"}
+        <div style={{textAlign:"center",marginBottom:26}}>
+          <div style={{fontSize:40,marginBottom:12}}>👨‍🍳</div>
+          <p style={{fontFamily:"'Playfair Display',serif",fontSize:25,fontWeight:900,color:t.textPrimary,marginBottom:8}}>
+            Welcome to SpiceSight
           </p>
-          <p style={{fontSize:14,color:t.textMuted,fontWeight:500,lineHeight:1.5}}>
-            {mode==="signin"?"Sign in to access your recipes on any device":"Create an account to sync recipes across devices"}
+          <p style={{fontSize:14,color:t.textMuted,fontWeight:500,lineHeight:1.6}}>
+            Sign in to save your recipes and access them on any device
           </p>
         </div>
 
         <button onClick={googleSignIn} disabled={busy} style={{
-          width:"100%",padding:"13px",borderRadius:14,cursor:busy?"default":"pointer",
-          background:dark?"#fff":"#fff",
+          width:"100%",padding:"15px",borderRadius:14,cursor:busy?"default":"pointer",
+          background:"#fff",
           border:`2px solid ${dark?"#3a4660":"#dadce0"}`,
-          display:"flex",alignItems:"center",justifyContent:"center",gap:10,
-          fontFamily:"'Plus Jakarta Sans',sans-serif",fontSize:15,fontWeight:700,
+          display:"flex",alignItems:"center",justifyContent:"center",gap:12,
+          fontFamily:"'Plus Jakarta Sans',sans-serif",fontSize:16,fontWeight:700,
           color:"#3c4043",opacity:busy?0.7:1,transition:"all 0.25s",
-          boxShadow:"0 2px 8px rgba(0,0,0,0.08)",marginBottom:18,
+          boxShadow:"0 2px 10px rgba(0,0,0,0.1)",
         }}
-        onMouseEnter={e=>{e.currentTarget.style.boxShadow="0 4px 16px rgba(0,0,0,0.15)";}}
-        onMouseLeave={e=>{e.currentTarget.style.boxShadow="0 2px 8px rgba(0,0,0,0.08)";}}>
-          <svg width="20" height="20" viewBox="0 0 24 24">
+        onMouseEnter={e=>{e.currentTarget.style.boxShadow="0 4px 18px rgba(0,0,0,0.18)";}}
+        onMouseLeave={e=>{e.currentTarget.style.boxShadow="0 2px 10px rgba(0,0,0,0.1)";}}>
+          <svg width="22" height="22" viewBox="0 0 24 24">
             <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
             <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
             <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
             <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
           </svg>
-          Continue with Google
+          {busy?"One moment...":"Continue with Google"}
         </button>
-
-        <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:18}}>
-          <div style={{flex:1,height:1.5,background:dark?"#3a4660":t.cardBorder}}/>
-          <span style={{fontSize:12,color:t.textFaint,fontWeight:600,letterSpacing:1}}>OR</span>
-          <div style={{flex:1,height:1.5,background:dark?"#3a4660":t.cardBorder}}/>
-        </div>
-
-        <div style={{display:"flex",flexDirection:"column",gap:12,marginBottom:16}}>
-          <input type="email" placeholder="Email" value={email} autoComplete="email"
-            onChange={e=>setEmail(e.target.value)} style={fieldStyle}/>
-          <input type="password" placeholder="Password (6+ characters)" value={password}
-            autoComplete={mode==="signup"?"new-password":"current-password"}
-            onChange={e=>setPassword(e.target.value)}
-            onKeyDown={e=>{if(e.key==="Enter")submit();}}
-            style={fieldStyle}/>
-        </div>
 
         {err&&(
-          <p style={{fontSize:13,color:"#e05252",fontWeight:600,marginBottom:14,textAlign:"center",lineHeight:1.5}}>{err}</p>
+          <p style={{fontSize:13,color:"#e05252",fontWeight:600,marginTop:16,textAlign:"center",lineHeight:1.5}}>{err}</p>
         )}
 
-        <button onClick={submit} disabled={busy} style={{
-          width:"100%",padding:"15px",borderRadius:14,border:"none",cursor:busy?"default":"pointer",
-          background:`linear-gradient(135deg,${t.accent},${t.accentLight})`,
-          color:"#fff",fontFamily:"'Playfair Display',serif",fontSize:17,fontWeight:700,
-          boxShadow:`0 6px 24px ${t.accent}44`,opacity:busy?0.7:1,
-          transition:"all 0.25s",marginBottom:14,
-        }}>
-          {busy?"One moment...":mode==="signin"?"Sign In":"Create Account"}
-        </button>
-
-        <p style={{fontSize:14,color:t.textMuted,textAlign:"center",fontWeight:500}}>
-          {mode==="signin"?"New here? ":"Already have an account? "}
-          <span onClick={()=>{setMode(m=>m==="signin"?"signup":"signin");setErr("");}}
-            style={{color:t.accent,fontWeight:700,cursor:"pointer"}}>
-            {mode==="signin"?"Create an account":"Sign in"}
-          </span>
+        <p style={{fontSize:12,color:t.textFaint,textAlign:"center",fontWeight:500,marginTop:20,lineHeight:1.6}}>
+          Works with any Google account — Gmail not required.
         </p>
       </div>
     </div>
