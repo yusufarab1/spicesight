@@ -1271,6 +1271,7 @@ export default function SpiceSight() {
 
   // ─── Step refs for auto-advance ───────────────────────────────────────────
   const refMethod   = useRef(null);
+  const refMeatSummary = useRef(null);
   const refSpices   = useRef(null);
   const refVeggies  = useRef(null);
   const refFlavor   = useRef(null);
@@ -2067,8 +2068,11 @@ Only use spices from provided list. Prioritize health.${veggies.length>0?" Provi
                   return (
                     <div key={m.id} onClick={()=>{
                       setFlippingMeat(m.id);
+                      const adding=!selectedMeats.includes(m.id);
                       setSelectedMeats(p=>p.includes(m.id)?p.filter(x=>x!==m.id):[...p,m.id]);
                       setTimeout(()=>setFlippingMeat(null),500);
+                      // Nudge the view just enough that the Continue button is visible
+                      if(adding) setTimeout(()=>refMeatSummary.current?.scrollIntoView({behavior:"smooth",block:"nearest"}),380);
                     }} style={{
                       position:"relative",overflow:"hidden",
                       display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",
@@ -2102,7 +2106,7 @@ Only use spices from provided list. Prioritize health.${veggies.length>0?" Provi
               />
               {/* Selection summary + continue nudge */}
               {hasMeat&&(
-                <div style={{marginTop:14,display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:10}}>
+                <div ref={refMeatSummary} style={{marginTop:14,display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:10,scrollMarginBottom:24}}>
                   <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
                     {allMeatLabels.map((l,i)=>{
                       const meatObj=MEATS.find(m=>m.label===l);
@@ -2349,16 +2353,6 @@ Only use spices from provided list. Prioritize health.${veggies.length>0?" Provi
                   <button onClick={()=>setFlavorProfile(null)} style={{marginLeft:"auto",background:"none",border:"none",cursor:"pointer",fontSize:18,color:"#9b55e0",lineHeight:1,padding:0}}>×</button>
                 </div>
               )}
-              <div style={{display:"flex"}}>
-                <button onClick={()=>scrollToStep(refGenerate,0)} style={{
-                    display:"flex",alignItems:"center",gap:6,marginLeft:"auto",marginTop:16,
-                    background:`linear-gradient(135deg,${t.accent},${t.accentLight})`,
-                    border:"none",borderRadius:99,padding:"9px 18px",cursor:"pointer",
-                    fontFamily:"'Plus Jakarta Sans',sans-serif",fontSize:13,fontWeight:700,
-                    color:"#fff",boxShadow:`0 4px 16px ${t.accent}44`,
-                    whiteSpace:"nowrap",
-                  }}>{flavorProfile?"Continue to Generate →":"Skip to Generate →"}</button>
-              </div>
             </div>
 
             {/* SERVINGS */}
