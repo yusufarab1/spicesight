@@ -680,6 +680,14 @@ function QuickTimer({ dark, t }) {
   // Clean up the alarm if the component ever unmounts mid-ring
   useEffect(()=>()=>{ ringRef.current?.(); },[]);
 
+  // Compact mode on phone-sized screens
+  const [compact,setCompact]=useState(typeof window!=="undefined"&&window.innerWidth<640);
+  useEffect(()=>{
+    const onR=()=>setCompact(window.innerWidth<640);
+    window.addEventListener("resize",onR);
+    return ()=>window.removeEventListener("resize",onR);
+  },[]);
+
   // ── Draggable panel ──
   const panelRef=useRef(null);
   const [panelPos,setPanelPos]=useState(null); // null = default corner
@@ -733,9 +741,9 @@ function QuickTimer({ dark, t }) {
   return (
     <>
       {/* Floating button with arched label */}
-      <div style={{position:"fixed",bottom:24,right:24,zIndex:9000,display:"flex",flexDirection:"column",alignItems:"center"}}>
+      <div style={{position:"fixed",bottom:compact?16:24,right:compact?16:24,zIndex:9000,display:"flex",flexDirection:"column",alignItems:"center"}}>
         {/* Arched "Timer" label — only in idle state */}
-        {!active&&!ringing&&(
+        {!active&&!ringing&&!compact&&(
           <svg width="130" height="42" viewBox="0 0 130 42" style={{marginBottom:-7,pointerEvents:"none",overflow:"visible"}}>
             <defs>
               <path id="timerArc" d="M 12 40 Q 65 -6 118 40" fill="none"/>
@@ -750,18 +758,18 @@ function QuickTimer({ dark, t }) {
           </svg>
         )}
         <button onClick={()=>{ if(ringing){stopRing();return;} setOpen(o=>!o); }} aria-label={ringing?"Stop alarm":"Quick timer"} style={{
-          minWidth:(active||ringing)?"auto":74,height:74,borderRadius:99,padding:(active||ringing)?"0 22px":0,
+          minWidth:(active||ringing)?"auto":(compact?52:74),height:compact?52:74,borderRadius:99,padding:(active||ringing)?(compact?"0 16px":"0 22px"):0,
           display:"flex",alignItems:"center",justifyContent:"center",gap:8,
           background:ringing?"#e05252":active?`linear-gradient(135deg,${t.accent},${t.accentLight})`:(dark?"#1a2030":"#fff"),
           border:`2px solid ${ringing?"#e05252":active?t.accent:t.cardBorder}`,
           boxShadow:ringing?"0 8px 32px #e0525288":active?`0 8px 28px ${t.accent}66`:"0 8px 24px rgba(0,0,0,0.2)",
           cursor:"pointer",transition:"all 0.3s",
-          fontFamily:"'Playfair Display',serif",fontSize:active?23:18,fontWeight:900,
+          fontFamily:"'Playfair Display',serif",fontSize:active?(compact?18:23):(compact?15:18),fontWeight:900,
           color:(active||ringing)?"#fff":t.textPrimary,
           fontVariantNumeric:"tabular-nums",
           animation:ringing?"alarmPulse 0.9s ease-in-out infinite":"none",
         }}>
-          {ringing?<><span style={{fontSize:19}}>🔔</span>Stop</>:active?<><span style={{fontSize:17}}>⏱</span>{fmt(remaining)}</>:<span style={{fontSize:38}}>⏱</span>}
+          {ringing?<><span style={{fontSize:compact?16:19}}>🔔</span>Stop</>:active?<><span style={{fontSize:compact?14:17}}>⏱</span>{fmt(remaining)}</>:<span style={{fontSize:compact?26:38}}>⏱</span>}
         </button>
       </div>
 
