@@ -1697,12 +1697,11 @@ Only use spices from provided list. Prioritize health.${veggies.length>0?" Provi
                 );
               })}
             </div>
-            <DarkToggle dark={dark} onToggle={()=>setDark(d=>!d)}/>
+            {/* ── ☰ menu: account + dark mode ── */}
             <div style={{position:"relative"}}>
               <button
-                onClick={()=>user?setShowAccountMenu(m=>!m):setShowAuth(true)}
-                aria-label={user?"Account menu":"Sign in"}
-                title={user?user.email:"Sign in to sync recipes"}
+                onClick={()=>setShowAccountMenu(m=>!m)}
+                aria-label="Menu"
                 style={{
                   width:46,height:46,borderRadius:"50%",
                   display:"flex",alignItems:"center",justifyContent:"center",
@@ -1712,43 +1711,76 @@ Only use spices from provided list. Prioritize health.${veggies.length>0?" Provi
                   boxShadow:user?`0 4px 18px ${t.accent}55`:t.shadow,
                   backdropFilter:"blur(12px)",
                   transition:"all 0.3s ease",
-                  fontFamily:"'Plus Jakarta Sans',sans-serif",
-                  fontSize:user?16:20,fontWeight:800,color:"#fff",
+                  fontSize:20,color:user?"#fff":t.textPrimary,
                 }}
                 onMouseEnter={e=>{e.currentTarget.style.transform="scale(1.08)";}}
                 onMouseLeave={e=>{e.currentTarget.style.transform="scale(1)";}}
               >
-                {user?(user.email?.[0]||"?").toUpperCase():"👤"}
+                ☰
               </button>
-              {/* Account dropdown */}
-              {user&&showAccountMenu&&(
+              {showAccountMenu&&(
                 <>
-                  {/* click-away catcher */}
                   <div style={{position:"fixed",inset:0,zIndex:998}} onClick={()=>setShowAccountMenu(false)}/>
                   <div style={{
                     position:"absolute",top:54,right:0,zIndex:999,
                     background:dark?"#1a2030":"#fff",
                     border:`1.5px solid ${dark?"#3a4660":t.cardBorder}`,
-                    borderRadius:16,padding:"14px",minWidth:220,
+                    borderRadius:16,padding:"14px",minWidth:230,
                     boxShadow:"0 16px 48px rgba(0,0,0,0.3)",
                     animation:"fadeUp 0.2s ease both",
                   }}>
-                    <p style={{fontSize:11,letterSpacing:1.5,color:t.textFaint,textTransform:"uppercase",fontWeight:700,marginBottom:4}}>Signed in as</p>
-                    <p style={{fontSize:14,fontWeight:700,color:t.textPrimary,marginBottom:12,wordBreak:"break-all"}}>{user.email}</p>
-                    <div style={{fontSize:12,color:t.textMuted,fontWeight:600,marginBottom:14,display:"flex",alignItems:"center",gap:6}}>
-                      <span style={{width:7,height:7,borderRadius:"50%",background:"#52d468",display:"inline-block"}}/>
-                      Recipes syncing to cloud
+                    {user?(
+                      <>
+                        <p style={{fontSize:11,letterSpacing:1.5,color:t.textFaint,textTransform:"uppercase",fontWeight:700,marginBottom:4}}>Signed in as</p>
+                        <p style={{fontSize:14,fontWeight:700,color:t.textPrimary,marginBottom:8,wordBreak:"break-all"}}>{user.email}</p>
+                        <div style={{fontSize:12,color:t.textMuted,fontWeight:600,marginBottom:12,display:"flex",alignItems:"center",gap:6}}>
+                          <span style={{width:7,height:7,borderRadius:"50%",background:"#52d468",display:"inline-block"}}/>
+                          Recipes syncing to cloud
+                        </div>
+                      </>
+                    ):(
+                      <button onClick={()=>{setShowAccountMenu(false);setShowAuth(true);}} style={{
+                        width:"100%",padding:"11px",borderRadius:10,cursor:"pointer",marginBottom:12,
+                        background:`linear-gradient(135deg,${t.accent},${t.accentLight})`,border:"none",
+                        color:"#fff",fontFamily:"'Plus Jakarta Sans',sans-serif",
+                        fontSize:14,fontWeight:700,boxShadow:`0 4px 14px ${t.accent}44`,
+                      }}>
+                        👤 Sign In
+                      </button>
+                    )}
+
+                    <div onClick={()=>setDark(d=>!d)} style={{
+                      display:"flex",alignItems:"center",justifyContent:"space-between",
+                      padding:"11px 12px",borderRadius:10,cursor:"pointer",
+                      background:t.mutedBg,border:`1.5px solid ${t.cardBorder}`,
+                      marginBottom:user?12:0,userSelect:"none",
+                    }}>
+                      <span style={{fontSize:14,fontWeight:700,color:t.textPrimary,display:"flex",alignItems:"center",gap:8}}>
+                        <span style={{fontSize:16}}>{dark?"☀️":"🌙"}</span>{dark?"Light Mode":"Dark Mode"}
+                      </span>
+                      <span style={{
+                        width:38,height:22,borderRadius:99,position:"relative",flexShrink:0,
+                        background:dark?t.accent:t.cardBorder,transition:"background 0.25s",
+                      }}>
+                        <span style={{
+                          position:"absolute",top:2,left:dark?18:2,width:18,height:18,borderRadius:"50%",
+                          background:"#fff",transition:"left 0.25s",boxShadow:"0 1px 4px rgba(0,0,0,0.3)",
+                        }}/>
+                      </span>
                     </div>
-                    <button onClick={()=>{setShowAccountMenu(false);signOut();}} style={{
-                      width:"100%",padding:"11px",borderRadius:10,cursor:"pointer",
-                      background:"transparent",border:`1.5px solid ${dark?"#5a3030":"#e8c0c0"}`,
-                      color:"#e05252",fontFamily:"'Plus Jakarta Sans',sans-serif",
-                      fontSize:13,fontWeight:700,transition:"all 0.2s",
-                    }}
-                    onMouseEnter={e=>{e.currentTarget.style.background="#e0525215";}}
-                    onMouseLeave={e=>{e.currentTarget.style.background="transparent";}}>
-                      Sign Out
-                    </button>
+
+                    {user&&(
+                      <button onClick={()=>{setShowAccountMenu(false);signOut();}} style={{
+                        width:"100%",padding:"11px",borderRadius:10,cursor:"pointer",
+                        background:"transparent",border:`1.5px solid ${dark?"#5a3030":"#e8c0c0"}`,
+                        color:"#e05252",fontFamily:"'Plus Jakarta Sans',sans-serif",
+                        fontSize:13,fontWeight:700,transition:"all 0.2s",
+                      }}
+                      onMouseEnter={e=>{e.currentTarget.style.background="#e0525215";}}
+                      onMouseLeave={e=>{e.currentTarget.style.background="transparent";}}>
+                        Sign Out
+                      </button>
+                    )}
                   </div>
                 </>
               )}
