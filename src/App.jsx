@@ -682,9 +682,10 @@ function QuickTimer({ dark, t }) {
 
   const start=(mins)=>{
     const secs=Math.round(mins*60);
-    if(secs<=0) return;
+    if(secs<5) return; // minimum 5 seconds
     setInitial(secs); setRemaining(secs); setRunning(true); setCustomMin("");
   };
+  const customSecs=customMin>0?Math.round(Number(customMin)*60):0;
   const fmt=s=>`${Math.floor(s/60)}:${String(s%60).padStart(2,"0")}`;
   const active=remaining>0||running;
 
@@ -710,7 +711,7 @@ function QuickTimer({ dark, t }) {
       {/* Panel */}
       {open&&(
         <>
-          <div style={{position:"fixed",inset:0,zIndex:8999}} onClick={()=>setOpen(false)}/>
+          {!active&&!ringing&&<div style={{position:"fixed",inset:0,zIndex:8999}} onClick={()=>setOpen(false)}/>}
           <div style={{
             position:"fixed",bottom:92,right:24,zIndex:9001,width:280,
             background:dark?"#1a2030":"#fff",
@@ -780,6 +781,11 @@ function QuickTimer({ dark, t }) {
                     Start
                   </button>
                 </div>
+                {customSecs>0&&(
+                  <p style={{fontSize:12,fontWeight:700,color:customSecs<5?"#e05252":t.accent,marginTop:8,textAlign:"center"}}>
+                    {customSecs<5?"Too short — minimum 5 seconds":`Sets a ${fmt(customSecs)} timer`}
+                  </p>
+                )}
               </>
             )}
           </div>
