@@ -1365,8 +1365,17 @@ export default function SpiceSight() {
 
   // ─── Auth session: restore on load, listen for changes ────────────────────
   useEffect(()=>{
-    supabase.auth.getSession().then(({data})=>{
-      if(data?.session?.user) setUser(data.session.user);
+    // Restore cached session, but VERIFY it with the server — a deleted or
+    // banned account shouldn't stay signed in just because a token is cached
+    supabase.auth.getSession().then(async ({data})=>{
+      if(!data?.session?.user) return;
+      const { data:verified, error } = await supabase.auth.getUser();
+      if(error || !verified?.user) {
+        await supabase.auth.signOut().catch(()=>{});
+        setUser(null);
+      } else {
+        setUser(verified.user);
+      }
     });
     const {data:sub} = supabase.auth.onAuthStateChange((_e,session)=>{
       setUser(session?.user||null);
