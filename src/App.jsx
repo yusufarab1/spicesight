@@ -680,6 +680,37 @@ function QuickTimer({ dark, t }) {
   // Clean up the alarm if the component ever unmounts mid-ring
   useEffect(()=>()=>{ ringRef.current?.(); },[]);
 
+  // ── Draggable panel ──
+  const panelRef=useRef(null);
+  const [panelPos,setPanelPos]=useState(null); // null = default corner
+  const dragOffset=useRef(null);
+  const onDragStart=(e)=>{
+    const rect=panelRef.current?.getBoundingClientRect();
+    if(!rect) return;
+    const pt=e.touches?e.touches[0]:e;
+    dragOffset.current={dx:pt.clientX-rect.left, dy:pt.clientY-rect.top, h:rect.height};
+    const move=(ev)=>{
+      const p=ev.touches?ev.touches[0]:ev;
+      let x=p.clientX-dragOffset.current.dx;
+      let y=p.clientY-dragOffset.current.dy;
+      x=Math.max(8,Math.min(window.innerWidth-288,x));
+      y=Math.max(8,Math.min(window.innerHeight-dragOffset.current.h-8,y));
+      setPanelPos({x,y});
+      ev.preventDefault();
+    };
+    const up=()=>{
+      window.removeEventListener("pointermove",move);
+      window.removeEventListener("pointerup",up);
+      window.removeEventListener("touchmove",move);
+      window.removeEventListener("touchend",up);
+    };
+    window.addEventListener("pointermove",move);
+    window.addEventListener("pointerup",up);
+    window.addEventListener("touchmove",move,{passive:false});
+    window.addEventListener("touchend",up);
+    e.preventDefault();
+  };
+
   // Kitchen notation: "2" = 2 min, "2.30" = 2 min 30 sec, ".10" = 10 sec
   const parseCustom=(v)=>{
     const s=String(v||"").trim();
@@ -693,7 +724,6 @@ function QuickTimer({ dark, t }) {
   const startSecs=(totalSecs)=>{
     if(totalSecs<5) return; // minimum 5 seconds
     setInitial(totalSecs); setRemaining(totalSecs); setRunning(true); setCustomMin("");
-    setOpen(false); // panel steps aside — countdown lives on the pill button
   };
   const start=(mins)=>startSecs(Math.round(mins*60));
   const customSecs=parseCustom(customMin);
@@ -739,15 +769,18 @@ function QuickTimer({ dark, t }) {
       {open&&(
         <>
           {!active&&!ringing&&<div style={{position:"fixed",inset:0,zIndex:8999}} onClick={()=>setOpen(false)}/>}
-          <div style={{
-            position:"fixed",bottom:150,right:24,zIndex:9001,width:280,
+          <div ref={panelRef} style={{
+            position:"fixed",...(panelPos?{left:panelPos.x,top:panelPos.y}:{bottom:150,right:24}),zIndex:9001,width:280,
             background:dark?"#1a2030":"#fff",
             border:`2px solid ${dark?"#3a4660":t.cardBorder}`,
             borderRadius:20,padding:20,
             boxShadow:"0 20px 56px rgba(0,0,0,0.35)",
             animation:"fadeUp 0.25s ease both",
           }}>
-            <p style={{fontFamily:"'Playfair Display',serif",fontSize:18,fontWeight:900,color:t.textPrimary,marginBottom:14}}>⏱ Quick Timer</p>
+            <div onPointerDown={onDragStart} style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14,cursor:"grab",touchAction:"none",userSelect:"none"}}>
+              <p style={{fontFamily:"'Playfair Display',serif",fontSize:18,fontWeight:900,color:t.textPrimary}}>⏱ Quick Timer</p>
+              <span style={{fontSize:15,color:t.textFaint,letterSpacing:2}} title="Drag to move">⠿</span>
+            </div>
 
             {ringing?(
               <div style={{textAlign:"center"}}>
