@@ -1087,6 +1087,9 @@ function ShoppingList({ result, meatLabel, veggies, servings, dark, t, onClose }
               </div>
             </div>
           ))}
+          <p style={{fontSize:11,color:t.textFaint,fontWeight:500,textAlign:"center",lineHeight:1.6,marginTop:4,marginBottom:16}}>
+            As an Amazon Associate, SpiceSight earns from qualifying purchases made through Buy links.
+          </p>
           {checkedCount===totalItems&&totalItems>0&&(
             <div style={{textAlign:"center",padding:"20px 0"}}>
               <div style={{fontSize:48,marginBottom:8}}>🎉</div>
@@ -1285,23 +1288,13 @@ export default function SpiceSight() {
       if(!url?.includes("auth-callback")) return;
       try { await Browser.close(); } catch {}
       try {
-        // PKCE flow: ?code=...
+        // PKCE only: the ?code is useless to an attacker without the
+        // code_verifier stored in THIS app — which is exactly why we
+        // don't accept raw tokens from deep links (login-CSRF vector).
         const code = new URL(url).searchParams.get("code");
         if(code) {
           await supabase.auth.exchangeCodeForSession(code);
           setShowAuth(false);
-          return;
-        }
-        // Implicit flow fallback: #access_token=...&refresh_token=...
-        const hash = url.split("#")[1];
-        if(hash) {
-          const p = new URLSearchParams(hash);
-          const access_token = p.get("access_token");
-          const refresh_token = p.get("refresh_token");
-          if(access_token && refresh_token) {
-            await supabase.auth.setSession({ access_token, refresh_token });
-            setShowAuth(false);
-          }
         }
       } catch {}
     });
