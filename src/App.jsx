@@ -1734,7 +1734,14 @@ Only use spices from provided list. Prioritize health.${veggies.length>0?" Provi
                     {user?(
                       <>
                         <p style={{fontSize:11,letterSpacing:1.5,color:t.textFaint,textTransform:"uppercase",fontWeight:700,marginBottom:4}}>Signed in as</p>
-                        <p style={{fontSize:14,fontWeight:700,color:t.textPrimary,marginBottom:8,wordBreak:"break-all"}}>{user.email}</p>
+                        <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:8}}>
+                          {user.user_metadata?.avatar_url&&(
+                            <img src={user.user_metadata.avatar_url} alt="" referrerPolicy="no-referrer" style={{width:32,height:32,borderRadius:"50%",border:`1.5px solid ${t.cardBorder}`}}/>
+                          )}
+                          <p style={{fontSize:14,fontWeight:700,color:t.textPrimary}}>
+                            {user.user_metadata?.full_name||user.user_metadata?.name||user.email}
+                          </p>
+                        </div>
                         <div style={{fontSize:12,color:t.textMuted,fontWeight:600,marginBottom:12,display:"flex",alignItems:"center",gap:6}}>
                           <span style={{width:7,height:7,borderRadius:"50%",background:"#52d468",display:"inline-block"}}/>
                           Recipes syncing to cloud
