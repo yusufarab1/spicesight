@@ -1788,20 +1788,27 @@ Only use spices from provided list. Prioritize health.${veggies.length>0?" Provi
         throw new Error(data?.error||`Request failed (${res.status})`);
       }
 
-      // ── Stream the response in, extracting fields live ──
-      const reader=res.body.getReader();
-      const decoder=new TextDecoder();
+      // ── Read the response. Browsers stream it (live progress bar); the
+      // Android WebView's streaming reader (res.body.getReader) is unreliable,
+      // so in the native app we read the whole body at once instead. Same data.
       let buffer="";
-      const EXPECTED_CHARS=2600; // typical full recipe length — drives progress bar
-      while(true){
-        const {done,value}=await reader.read();
-        if(done) break;
-        buffer+=decoder.decode(value,{stream:true});
-        // Live-extract the recipe name the moment the AI writes it
-        const nameMatch=buffer.match(/"recipe_name"\s*:\s*"([^"]*)"/);
-        if(nameMatch&&nameMatch[1]) setStreamName(nameMatch[1]);
-        // Progress from real bytes received (capped at 95% until parse succeeds)
-        setStreamPct(Math.min(Math.round((buffer.length/EXPECTED_CHARS)*100),95));
+      if(IS_NATIVE || !res.body?.getReader){
+        buffer = await res.text();
+        setStreamPct(95);
+      } else {
+        const reader=res.body.getReader();
+        const decoder=new TextDecoder();
+        const EXPECTED_CHARS=2600; // typical full recipe length — drives progress bar
+        while(true){
+          const {done,value}=await reader.read();
+          if(done) break;
+          buffer+=decoder.decode(value,{stream:true});
+          // Live-extract the recipe name the moment the AI writes it
+          const nameMatch=buffer.match(/"recipe_name"\s*:\s*"([^"]*)"/);
+          if(nameMatch&&nameMatch[1]) setStreamName(nameMatch[1]);
+          // Progress from real bytes received (capped at 95% until parse succeeds)
+          setStreamPct(Math.min(Math.round((buffer.length/EXPECTED_CHARS)*100),95));
+        }
       }
 
       // Extract the recipe JSON. Greedy match first; if that fails (extra text
