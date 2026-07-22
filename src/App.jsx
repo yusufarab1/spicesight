@@ -2650,27 +2650,66 @@ Only use spices from provided list. Prioritize health.${veggies.length>0?" Provi
               )}
 
               {/* Health */}
-              <div className="rc" style={{...cardStyle,padding:"28px"}}>
-                <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:22}}>
-                  <span style={{fontSize:22}}>💚</span>
-                  <p style={{fontSize:18,fontFamily:"'Playfair Display',serif",fontWeight:700,color:t.textPrimary}}>Health Analysis</p>
-                </div>
-                <ChefMascot score={result.health_score}/>
-                <div style={{marginTop:20,marginBottom:20}}>
-                  <HealthRing score={result.health_score} t={t}/>
-                </div>
-                <div style={{background:t.mutedBg,border:`1.5px solid ${t.cardBorder}`,borderRadius:12,padding:"16px 18px",marginTop:18}}>
-                  <p style={{fontSize:15,color:t.textPrimary,lineHeight:1.8,fontWeight:500}}>{result.health_notes}</p>
-                </div>
-                {result.nutrition&&(
-                  <div style={{marginTop:22}}>
-                    <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:14}}>
-                      <span style={{fontSize:18}}>📊</span>
-                      <p style={{fontSize:16,fontFamily:"'Playfair Display',serif",fontWeight:700,color:t.textPrimary}}>Nutrition Breakdown</p>
+              <div className="rc" style={{...cardStyle,padding:0,overflow:"hidden"}}>
+                {/* Hero band: score ring + label + chef, tinted by score color */}
+                {(()=>{
+                  const sc=result.health_score;
+                  const scColor=sc>=80?"#2d7a3a":sc>=60?"#c8840c":"#c8440c";
+                  const scLabel=sc>=80?"Excellent":sc>=60?"Good":"Moderate";
+                  const scSub=sc>=80?"This recipe is a nutritional win":sc>=60?"A solid, balanced choice":"Tasty — with room to lighten up";
+                  return (
+                    <div style={{
+                      background:dark?`linear-gradient(135deg,${scColor}22,${scColor}0a)`:`linear-gradient(135deg,${scColor}14,${scColor}05)`,
+                      borderBottom:`1.5px solid ${scColor}33`,
+                      padding:"26px 28px",
+                      display:"flex",alignItems:"center",gap:22,flexWrap:"wrap",
+                    }}>
+                      {/* Big score ring */}
+                      <div style={{position:"relative",width:132,height:132,flexShrink:0}}>
+                        <svg width="132" height="132" style={{transform:"rotate(-90deg)"}}>
+                          <circle cx="66" cy="66" r="56" fill="none" stroke={dark?"#ffffff14":"#00000010"} strokeWidth="11"/>
+                          <circle cx="66" cy="66" r="56" fill="none" stroke={scColor} strokeWidth="11" strokeLinecap="round"
+                            strokeDasharray={`${2*Math.PI*56}`} strokeDashoffset={`${2*Math.PI*56*(1-sc/100)}`}
+                            style={{filter:`drop-shadow(0 0 8px ${scColor}66)`,transition:"stroke-dashoffset 1s ease"}}/>
+                        </svg>
+                        <div style={{position:"absolute",inset:0,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center"}}>
+                          <span style={{fontFamily:"'Playfair Display',serif",fontSize:44,fontWeight:900,color:scColor,lineHeight:1}}>{sc}</span>
+                          <span style={{fontSize:12,color:t.textMuted,fontWeight:700,letterSpacing:1}}>/ 100</span>
+                        </div>
+                      </div>
+                      {/* Label + subtitle */}
+                      <div style={{flex:"1 1 160px",minWidth:0}}>
+                        <p style={{fontSize:11,letterSpacing:2.5,color:scColor,textTransform:"uppercase",fontWeight:800,marginBottom:6,opacity:0.85}}>Health Score</p>
+                        <p style={{fontFamily:"'Playfair Display',serif",fontSize:34,fontWeight:900,color:scColor,lineHeight:1.05,marginBottom:8}}>{scLabel}</p>
+                        <p style={{fontSize:14,color:t.textSecondary,fontWeight:600,lineHeight:1.4}}>{scSub}</p>
+                      </div>
+                      {/* Chef companion — smaller, tucked in the corner */}
+                      <div style={{width:96,flexShrink:0,alignSelf:"center"}}>
+                        <ChefMascot score={result.health_score}/>
+                      </div>
                     </div>
-                    <NutritionCard nutrition={result.nutrition} servings={servings} dark={dark} t={t}/>
+                  );
+                })()}
+
+                {/* Body: notes + nutrition */}
+                <div style={{padding:"24px 28px 28px"}}>
+                  <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14}}>
+                    <span style={{fontSize:20}}>💚</span>
+                    <p style={{fontSize:17,fontFamily:"'Playfair Display',serif",fontWeight:800,color:t.textPrimary}}>Why it's healthy</p>
                   </div>
-                )}
+                  <div style={{background:t.mutedBg,border:`1.5px solid ${t.cardBorder}`,borderRadius:12,padding:"16px 18px"}}>
+                    <p style={{fontSize:15,color:t.textPrimary,lineHeight:1.8,fontWeight:500}}>{result.health_notes}</p>
+                  </div>
+                  {result.nutrition&&(
+                    <div style={{marginTop:24}}>
+                      <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:14}}>
+                        <span style={{fontSize:18}}>📊</span>
+                        <p style={{fontSize:16,fontFamily:"'Playfair Display',serif",fontWeight:800,color:t.textPrimary}}>Nutrition Breakdown</p>
+                      </div>
+                      <NutritionCard nutrition={result.nutrition} servings={servings} dark={dark} t={t}/>
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Spice mix */}
