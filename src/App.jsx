@@ -445,73 +445,6 @@ function playTimerChime() {
   try { navigator.vibrate?.([200,100,200,100,400]); } catch {}
 }
 
-// ─── Generation ambience: a soft lo-fi pad that loops while the AI works ──────
-// Returns a stop() function. Pure Web Audio — no files, no copyright risk.
-function startCookingAmbience() {
-  let ctx;
-  try {
-    ctx = new (window.AudioContext||window.webkitAudioContext)();
-  } catch { return ()=>{}; }
-
-  const master = ctx.createGain();
-  master.gain.setValueAtTime(0, ctx.currentTime);
-  master.gain.linearRampToValueAtTime(0.16, ctx.currentTime + 0.8); // gentle fade-in
-  // soft lowpass so it's warm, never harsh
-  const lp = ctx.createBiquadFilter();
-  lp.type = "lowpass";
-  lp.frequency.value = 900;
-  lp.Q.value = 0.6;
-  lp.connect(master);
-  master.connect(ctx.destination);
-
-  // Warm chord (Cmaj9-ish) held as a slowly shimmering pad
-  const freqs = [130.81, 196.00, 246.94, 329.63, 392.00]; // C3 G3 B3 E4 G4
-  const oscs = [];
-  freqs.forEach((f, i) => {
-    const o = ctx.createOscillator();
-    o.type = "sine";
-    o.frequency.value = f;
-    const g = ctx.createGain();
-    g.gain.value = 0.2 / (i*0.35 + 1);
-    // slow LFO on gain for a gentle breathing shimmer
-    const lfo = ctx.createOscillator();
-    lfo.frequency.value = 0.08 + i*0.03;
-    const lfoGain = ctx.createGain();
-    lfoGain.gain.value = 0.06;
-    lfo.connect(lfoGain);
-    lfoGain.connect(g.gain);
-    o.connect(g); g.connect(lp);
-    o.start(); lfo.start();
-    oscs.push(o, lfo);
-  });
-
-  // soft occasional marimba plink for movement (in key)
-  const notes = [523.25, 659.25, 783.99, 587.33]; // C5 E5 G5 D5
-  const plinkTimer = setInterval(() => {
-    try {
-      const f = notes[Math.floor(Math.random()*notes.length)];
-      const o = ctx.createOscillator(); o.type="triangle"; o.frequency.value=f;
-      const g = ctx.createGain();
-      const t0 = ctx.currentTime;
-      g.gain.setValueAtTime(0, t0);
-      g.gain.linearRampToValueAtTime(0.08, t0+0.02);
-      g.gain.exponentialRampToValueAtTime(0.001, t0+1.2);
-      o.connect(g); g.connect(lp);
-      o.start(t0); o.stop(t0+1.3);
-    } catch {}
-  }, 1600);
-
-  let stopped = false;
-  return () => {
-    if (stopped) return; stopped = true;
-    clearInterval(plinkTimer);
-    try {
-      master.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.4); // fade out
-      setTimeout(()=>{ try{oscs.forEach(o=>o.stop());}catch{} try{ctx.close();}catch{} }, 500);
-    } catch { try{ctx.close();}catch{} }
-  };
-}
-
 // ─── Success chime: a bright, satisfying "ta-da" when the recipe is ready ─────
 function playSuccessChime() {
   try {
@@ -1333,7 +1266,6 @@ export default function SpiceSight() {
   const [soundOn,       setSoundOn]       = useState(()=>{
     try { return localStorage.getItem("spicesight-sound")!=="off"; } catch { return true; }
   });
-  const ambienceRef = useRef(null);
   const [errorToast,    setErrorToast]    = useState(false);
 
   // ─── Step refs for auto-advance ───────────────────────────────────────────
@@ -1607,9 +1539,6 @@ export default function SpiceSight() {
   async function generate() {
     fireParticles();
     setLoading(true);setError(null);setResult(null);
-    // Start the lo-fi cooking ambience (tapping Generate counts as the user
-    // interaction browsers require to allow audio)
-    if(soundOn){ try{ ambienceRef.current?.(); ambienceRef.current=startCookingAmbience(); }catch{} }
     const veggieNote=veggies.length>0?`\nVegetables: ${veggies.join(", ")} — cook ${veggieStyle==="with"?"WITH the meat":"separately ON THE SIDE"}.`:"";
     const veggieJsonField=veggies.length>0?`,"veggie_prep":{"style":"${veggieStyle==="with"?"With the Meat":"On the Side"}","instructions":["Step 1","Step 2","Step 3"],"tip":"One veggie tip"}`:"";
 
@@ -1709,8 +1638,6 @@ Only use spices from provided list. Prioritize health.${veggies.length>0?" Provi
       setStreamPct(100);
       setResult(parsed);
       setScreen("results");
-      // Stop the ambience and celebrate with a success chime
-      try{ ambienceRef.current?.(); ambienceRef.current=null; }catch{}
       if(soundOn) playSuccessChime();
       window.scrollTo({top:0,behavior:"instant"});
     } catch(err) {
@@ -1721,7 +1648,7 @@ Only use spices from provided list. Prioritize health.${veggies.length>0?" Provi
       setErrorToast(true);
       setTimeout(()=>setErrorToast(false), 5000);
     }
-    finally{setLoading(false); try{ ambienceRef.current?.(); ambienceRef.current=null; }catch{}}
+    finally{setLoading(false);}
   }
 
   // Go back to form keeping all selections intact
@@ -1925,7 +1852,7 @@ Only use spices from provided list. Prioritize health.${veggies.length>0?" Provi
                     </div>
 
                     {/* Sound toggle */}
-                    <div onClick={()=>{const nv=!soundOn;setSoundOn(nv);try{localStorage.setItem("spicesight-sound",nv?"on":"off");}catch{};if(!nv){try{ambienceRef.current?.();ambienceRef.current=null;}catch{}}}} style={{
+                    <div onClick={()=>{const nv=!soundOn;setSoundOn(nv);try{localStorage.setItem("spicesight-sound",nv?"on":"off");}catch{}}} style={{
                       display:"flex",alignItems:"center",justifyContent:"space-between",
                       padding:"11px 12px",borderRadius:10,cursor:"pointer",
                       background:t.mutedBg,border:`1.5px solid ${t.cardBorder}`,
