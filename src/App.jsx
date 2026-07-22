@@ -1228,6 +1228,9 @@ export default function SpiceSight() {
   const [diceRolling,   setDiceRolling]   = useState(false);
   const [particles,     setParticles]     = useState([]);
   const [servings,      setServings]      = useState(2);
+  const [meatQty,       setMeatQty]       = useState("");      // numeric amount
+  const [meatQtyUnit,   setMeatQtyUnit]   = useState("oz");    // "oz" | "g" | "pieces"
+  const [showSizeGuide, setShowSizeGuide] = useState(false);
   const [libSearch,     setLibSearch]     = useState("");
   const [shareToast,    setShareToast]    = useState(false);
   const [showShoppingList, setShowShoppingList] = useState(false);
@@ -1379,6 +1382,7 @@ export default function SpiceSight() {
       id: Date.now(),
       savedAt: new Date().toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"}),
       meat: meatLabel,
+      meatQty: meatQty>0?`${meatQty} ${meatQtyUnit}`:null,
       meatColor: meatColor,
       method: methodLabel,
       spices:[...spices],
@@ -1486,11 +1490,24 @@ export default function SpiceSight() {
     const fp = FLAVOR_PROFILES.find(f=>f.id===flavorProfile);
     const flavorNote = fp ? `\nFlavor direction: ${fp.keywords}` : "";
 
+    // Meat quantity: convert whatever unit they chose into grams for the AI
+    let qtyNote = "";
+    if(meatQty>0){
+      const q = Number(meatQty);
+      let grams;
+      if(meatQtyUnit==="oz") grams = Math.round(q*28.35);
+      else if(meatQtyUnit==="g") grams = Math.round(q);
+      else grams = Math.round(q*142); // pieces → ~142g each estimate
+      const ozVal = (grams/28.35).toFixed(1);
+      const pieceNote = meatQtyUnit==="pieces" ? ` (about ${q} pieces)` : "";
+      qtyNote = `\nMeat quantity available: ${grams} g / ${ozVal} oz${pieceNote}. Scale ALL spice amounts, marinade, and cooking times to this exact quantity of meat, and base the nutrition on this amount.`;
+    }
+
     let prompt;
     if(surpriseMode){
       const proteinHint=surpriseProtein.trim()?`The user has this protein available: ${surpriseProtein.trim()}. Use it.`:`Choose the healthiest protein that pairs best with these spices.`;
       prompt=`You are an expert culinary nutritionist and chef. ${proteinHint}
-Available spices: ${spices.join(", ")}${veggieNote}${flavorNote}
+Available spices: ${spices.join(", ")}${veggieNote}${flavorNote}${qtyNote}
 Servings: ${servings} people — scale all ingredient amounts accordingly.
 Based ONLY on these spices, decide the best protein and cooking method to create the healthiest, most delicious meal possible.
 Return ONLY valid JSON:
@@ -1498,7 +1515,7 @@ Return ONLY valid JSON:
 Only use spices from the provided list. Prioritize health and flavor synergy.${veggies.length>0?" Provide detailed veggie prep.":""}`;
     } else {
       prompt=`You are an expert culinary nutritionist and chef. Season ${meatLabel} using ${selectedMethod==="custom"?customMethod:selectedMethod} method.${allMeatLabels.length>1?` This is a multi-protein dish combining ${meatLabel} — create a unified recipe that works for all.`:""}
-Available spices: ${spices.join(", ")}${veggieNote}${flavorNote}
+Available spices: ${spices.join(", ")}${veggieNote}${flavorNote}${qtyNote}
 Servings: ${servings} people — scale all ingredient amounts accordingly.
 Return ONLY valid JSON:
 {"recipe_name":"Creative name","health_score":85,"health_notes":"2 sentences about health benefits.","nutrition":{"calories":420,"protein":38,"carbs":12,"fat":18,"fiber":4},"spice_mix":[{"spice":"name","amount":"1 tsp","role":"role in 5 words"}],"marinate_time":"30 minutes","cooking_instructions":["Step 1","Step 2","Step 3","Step 4","Step 5"]${veggieJsonField},"pro_tip":"One chef tip.","flavor_profile":"e.g. Smoky & Earthy"}
@@ -2167,6 +2184,67 @@ Only use spices from provided list. Prioritize health.${veggies.length>0?" Provi
                     color:"#fff",boxShadow:`0 4px 16px ${t.accent}44`,
                     whiteSpace:"nowrap",
                   }}>Continue to Method →</button>
+                </div>
+              )}
+
+              {/* ── HOW MUCH DO YOU HAVE? (optional quantity) ── */}
+              {hasMeat&&(
+                <div style={{marginTop:16,background:t.inputBg,border:`1.5px solid ${t.cardBorder}`,borderRadius:16,padding:"16px 18px"}}>
+                  <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:8,marginBottom:12}}>
+                    <p style={{fontSize:14,fontWeight:700,color:t.textPrimary,display:"flex",alignItems:"center",gap:7}}>
+                      <span style={{fontSize:16}}>⚖️</span> How much do you have? <span style={{fontSize:12,fontWeight:600,color:t.textFaint}}>(optional)</span>
+                    </p>
+                    <button onClick={()=>setShowSizeGuide(s=>!s)} style={{background:"none",border:"none",cursor:"pointer",fontSize:12,fontWeight:700,color:t.accent,textDecoration:"underline",padding:0}}>
+                      {showSizeGuide?"Hide guide":"Not sure?"}
+                    </button>
+                  </div>
+
+                  <div style={{display:"flex",gap:10,alignItems:"stretch",flexWrap:"wrap"}}>
+                    {/* number input */}
+                    <input type="text" inputMode="decimal" placeholder="0" value={meatQty}
+                      onChange={e=>{const v=e.target.value;if(/^\d*\.?\d*$/.test(v))setMeatQty(v);}}
+                      style={{flex:"1 1 90px",minWidth:0,background:dark?"#0a0e16":"#fff",border:`2px solid ${dark?"#4a5a78":t.inputBorder}`,borderRadius:10,padding:"11px 14px",color:dark?"#fff":t.textPrimary,fontFamily:"'Playfair Display',serif",fontSize:20,fontWeight:700,outline:"none",textAlign:"center"}}/>
+                    {/* unit toggle */}
+                    <div style={{display:"flex",gap:4,background:dark?"#0a0e16":"#fff",border:`2px solid ${dark?"#4a5a78":t.inputBorder}`,borderRadius:10,padding:4}}>
+                      {["oz","g","pieces"].map(u=>(
+                        <button key={u} onClick={()=>setMeatQtyUnit(u)} style={{
+                          padding:"7px 14px",borderRadius:7,border:"none",cursor:"pointer",
+                          fontFamily:"'Plus Jakarta Sans',sans-serif",fontSize:13,fontWeight:700,
+                          background:meatQtyUnit===u?`linear-gradient(135deg,${t.accent},${t.accentLight})`:"transparent",
+                          color:meatQtyUnit===u?"#fff":t.textMuted,transition:"all 0.2s",whiteSpace:"nowrap",
+                        }}>{u}</button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* live conversion readout */}
+                  {meatQty>0&&(
+                    <p style={{fontSize:12.5,fontWeight:600,color:t.accent,marginTop:10,textAlign:"center"}}>
+                      {meatQtyUnit==="oz"&&`≈ ${Math.round(Number(meatQty)*28.35)} g total`}
+                      {meatQtyUnit==="g"&&`≈ ${(Number(meatQty)/28.35).toFixed(1)} oz total`}
+                      {meatQtyUnit==="pieces"&&`≈ ${Math.round(Number(meatQty)*5)} oz / ${Math.round(Number(meatQty)*142)} g (estimated)`}
+                    </p>
+                  )}
+
+                  {/* size guide */}
+                  {showSizeGuide&&(
+                    <div style={{marginTop:12,background:t.mutedBg,border:`1.5px solid ${t.cardBorder}`,borderRadius:12,padding:"14px 16px",animation:"fadeUp 0.25s ease both"}}>
+                      <p style={{fontSize:12.5,fontWeight:700,color:t.textPrimary,marginBottom:8}}>👋 Eyeball it with your hand:</p>
+                      {[
+                        {icon:"🖐️",txt:"Palm-sized portion",amt:"≈ 4 oz / 115 g"},
+                        {icon:"🃏",txt:"Deck of cards",amt:"≈ 3 oz / 85 g"},
+                        {icon:"✊",txt:"Your fist",amt:"≈ 8 oz / 225 g"},
+                        {icon:"🍗",txt:"1 chicken breast",amt:"≈ 6 oz / 170 g"},
+                        {icon:"🍗",txt:"1 chicken thigh",amt:"≈ 4 oz / 115 g"},
+                      ].map((row,i)=>(
+                        <div key={i} style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:10,padding:"4px 0",fontSize:12.5}}>
+                          <span style={{color:t.textSecondary,fontWeight:500,display:"flex",alignItems:"center",gap:7}}><span>{row.icon}</span>{row.txt}</span>
+                          <span style={{color:t.textMuted,fontWeight:700,whiteSpace:"nowrap"}}>{row.amt}</span>
+                        </div>
+                      ))}
+                      <p style={{fontSize:11.5,color:t.textFaint,fontWeight:500,marginTop:8,lineHeight:1.5}}>Or just leave it blank — we'll size the recipe to your servings instead.</p>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
