@@ -1625,6 +1625,22 @@ export default function SpiceSight() {
     }
   }
 
+  // Mark a saved recipe as "made it / loved it" (toggles a heart badge)
+  async function toggleMadeIt(id) {
+    const fav = favorites.find(f=>f.id===id);
+    if(!fav) return;
+    const newVal = !fav.madeIt;
+    const updated = favorites.map(f=>f.id===id?{...f,madeIt:newVal}:f);
+    setFavorites(updated);
+    if(user&&fav._dbId){
+      // update the JSON blob in Supabase
+      const {_dbId, ...recipeData} = {...fav, madeIt:newVal};
+      await supabase.from("recipes").update({recipe_data:recipeData}).eq("id",fav._dbId);
+    } else if(!user){
+      persistFavorites(updated);
+    }
+  }
+
   async function signOut() {
     await supabase.auth.signOut();
     // onAuthStateChange fires → user becomes null → local favorites reload
@@ -2092,7 +2108,7 @@ Only use spices from provided list. Prioritize health.${veggies.length>0?" Provi
                         style={{...inputStyle,fontSize:14,padding:"12px 18px"}}
                       />
                     )}
-                    {favorites.filter(f=>!libSearch||f.recipe_name?.toLowerCase().includes(libSearch.toLowerCase())||f.meat?.toLowerCase().includes(libSearch.toLowerCase())).map(fav=>{
+                    {favorites.filter(f=>!libSearch||f.recipe_name?.toLowerCase().includes(libSearch.toLowerCase())||f.meat?.toLowerCase().includes(libSearch.toLowerCase())).slice().sort((a,b)=>(b.madeIt?1:0)-(a.madeIt?1:0)).map(fav=>{
                       const isOpen=expandedFav===fav.id;
                       const sc=fav.health_score>=80?"#2d7a3a":fav.health_score>=60?"#c8840c":"#c8440c";
                       return (
@@ -2112,7 +2128,9 @@ Only use spices from provided list. Prioritize health.${veggies.length>0?" Provi
                               </div>
                             </div>
                             <div style={{flex:1,minWidth:0}}>
-                              <p style={{fontFamily:"'Playfair Display',serif",fontSize:22,fontWeight:800,color:t.textPrimary,marginBottom:8,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{fav.recipe_name}</p>
+                              <p style={{fontFamily:"'Playfair Display',serif",fontSize:22,fontWeight:800,color:t.textPrimary,marginBottom:8,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+                                {fav.madeIt&&<span style={{fontSize:15,marginRight:6}}>❤️</span>}{fav.recipe_name}
+                              </p>
                               <div style={{display:"flex",gap:7,flexWrap:"wrap",alignItems:"center"}}>
                                 <span style={{background:`${fav.meatColor}22`,border:`1.5px solid ${fav.meatColor}66`,borderRadius:99,padding:"5px 14px",fontSize:14,color:fav.meatColor,fontWeight:700}}>🍖 {fav.meat}</span>
                                 <span style={{background:dark?"#1e1808":"#fff4ee",border:`1.5px solid #e8705088`,borderRadius:99,padding:"5px 14px",fontSize:14,color:dark?"#ff8a4e":"#c25028",fontWeight:700}}>🔥 {fav.method}</span>
@@ -2122,6 +2140,9 @@ Only use spices from provided list. Prioritize health.${veggies.length>0?" Provi
                             </div>
                             <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:8,flexShrink:0}}>
                               <span style={{fontSize:20,transition:"transform 0.3s",transform:isOpen?"rotate(180deg)":"rotate(0)",display:"inline-block",color:t.textMuted,lineHeight:1}}>⌄</span>
+                              <button onClick={e=>{e.stopPropagation();toggleMadeIt(fav.id);}} title={fav.madeIt?"Made it!":"Mark as made"} style={{background:fav.madeIt?"#e0526022":"none",border:`1.5px solid ${fav.madeIt?"#e05260":"rgba(224,82,96,0.3)"}`,borderRadius:8,padding:"4px 8px",cursor:"pointer",fontSize:14,lineHeight:1,transition:"all 0.2s"}}>
+                                {fav.madeIt?"❤️":"🤍"}
+                              </button>
                               <button onClick={e=>{e.stopPropagation();deleteFavorite(fav.id);}} title="Remove" style={{background:"none",border:`1.5px solid rgba(200,68,12,0.3)`,borderRadius:8,padding:"4px 8px",cursor:"pointer",fontSize:14,color:"#c8440c",fontWeight:700,transition:"all 0.2s"}}
                                 onMouseEnter={e=>{e.target.style.background="#c8440c";e.target.style.color="#fff";}}
                                 onMouseLeave={e=>{e.target.style.background="none";e.target.style.color="#c8440c";}}>🗑</button>
