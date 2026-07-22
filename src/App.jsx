@@ -1862,6 +1862,7 @@ Only use spices from provided list. Prioritize health.${veggies.length>0?" Provi
                               <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
                                 <span style={{background:`${fav.meatColor}18`,border:`1px solid ${fav.meatColor}44`,borderRadius:99,padding:"3px 10px",fontSize:12,color:fav.meatColor,fontWeight:700}}>🍖 {fav.meat}</span>
                                 <span style={{background:t.mutedBg,border:`1px solid ${t.cardBorder}`,borderRadius:99,padding:"3px 10px",fontSize:12,color:t.textMuted,fontWeight:600}}>🔥 {fav.method}</span>
+                                {fav.meatQty&&<span style={{background:dark?"#1a1508":"#fdf6ee",border:`1px solid #c8944a55`,borderRadius:99,padding:"3px 10px",fontSize:12,color:dark?"#e8b060":"#8b5a10",fontWeight:700}}>⚖️ {fav.meatQty}</span>}
                                 <span style={{fontSize:12,color:t.textMuted,fontWeight:500,alignSelf:"center"}}>{fav.savedAt}</span>
                               </div>
                             </div>
@@ -2568,6 +2569,7 @@ Only use spices from provided list. Prioritize health.${veggies.length>0?" Provi
                   {[
                     {label:`🌶 ${result.flavor_profile}`,bg:dark?"#1e1a08":"#fff0e0",bc:"#e8a050",col:dark?"#f0c040":"#8b4a10"},
                     {label:`🍖 ${meatLabel}`,             bg:`${meatColor}18`,         bc:`${meatColor}55`,col:meatColor},
+                    ...(meatQty>0?[{label:`⚖️ ${meatQtyUnit==="pieces"?`${meatQty} pieces`:meatQtyUnit==="oz"?`${meatQty} oz / ${Math.round(Number(meatQty)*28.35)} g`:`${meatQty} g / ${(Number(meatQty)/28.35).toFixed(1)} oz`}`,bg:dark?"#1a1508":"#fdf6ee",bc:"#c8944a",col:dark?"#e8b060":"#8b5a10"}]:[]),
                     {label:`🔥 ${methodLabel}`,           bg:dark?"#1e1808":"#fff4ee",bc:"#e87050",col:dark?"#ff7a2e":"#8b3820"},
                     {label:`👥 Serves ${servings}`,       bg:dark?"#0d1520":"#eef3ff", bc:"#7090d0",col:dark?"#90b8f8":"#2040a0"},
                     ...(flavorProfile?[{label:`${FLAVOR_PROFILES.find(f=>f.id===flavorProfile)?.emoji} ${FLAVOR_PROFILES.find(f=>f.id===flavorProfile)?.label}`,bg:dark?"#1e1030":"#f8eeff",bc:"#c090e8",col:dark?"#c090f8":"#7030c0"}]:[]),
