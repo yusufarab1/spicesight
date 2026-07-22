@@ -1858,12 +1858,12 @@ Only use spices from provided list. Prioritize health.${veggies.length>0?" Provi
                               </div>
                             </div>
                             <div style={{flex:1,minWidth:0}}>
-                              <p style={{fontFamily:"'Playfair Display',serif",fontSize:16,fontWeight:700,color:t.textPrimary,marginBottom:5,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{fav.recipe_name}</p>
-                              <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
-                                <span style={{background:`${fav.meatColor}18`,border:`1px solid ${fav.meatColor}44`,borderRadius:99,padding:"3px 10px",fontSize:12,color:fav.meatColor,fontWeight:700}}>🍖 {fav.meat}</span>
-                                <span style={{background:t.mutedBg,border:`1px solid ${t.cardBorder}`,borderRadius:99,padding:"3px 10px",fontSize:12,color:t.textMuted,fontWeight:600}}>🔥 {fav.method}</span>
-                                {fav.meatQty&&<span style={{background:dark?"#1a1508":"#fdf6ee",border:`1px solid #c8944a55`,borderRadius:99,padding:"3px 10px",fontSize:12,color:dark?"#e8b060":"#8b5a10",fontWeight:700}}>⚖️ {fav.meatQty}</span>}
-                                <span style={{fontSize:12,color:t.textMuted,fontWeight:500,alignSelf:"center"}}>{fav.savedAt}</span>
+                              <p style={{fontFamily:"'Playfair Display',serif",fontSize:22,fontWeight:800,color:t.textPrimary,marginBottom:8,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{fav.recipe_name}</p>
+                              <div style={{display:"flex",gap:7,flexWrap:"wrap",alignItems:"center"}}>
+                                <span style={{background:`${fav.meatColor}22`,border:`1.5px solid ${fav.meatColor}66`,borderRadius:99,padding:"5px 14px",fontSize:14,color:fav.meatColor,fontWeight:700}}>🍖 {fav.meat}</span>
+                                <span style={{background:dark?"#1e1808":"#fff4ee",border:`1.5px solid #e8705088`,borderRadius:99,padding:"5px 14px",fontSize:14,color:dark?"#ff8a4e":"#c25028",fontWeight:700}}>🔥 {fav.method}</span>
+                                {fav.meatQty&&<span style={{background:dark?"#1a1508":"#fdf6ee",border:`1.5px solid #c8944a88`,borderRadius:99,padding:"5px 14px",fontSize:14,color:dark?"#e8b060":"#8b5a10",fontWeight:700}}>⚖️ {fav.meatQty}</span>}
+                                <span style={{fontSize:13,color:t.textMuted,fontWeight:600,alignSelf:"center"}}>{fav.savedAt}</span>
                               </div>
                             </div>
                             <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:8,flexShrink:0}}>
@@ -1885,7 +1885,7 @@ Only use spices from provided list. Prioritize health.${veggies.length>0?" Provi
                                     {l:"🥑",v:fav.nutrition.fat,u:"g fat",c:dark?"#ff8a5c":"#e87050"},
                                     {l:"🌿",v:fav.nutrition.fiber,u:"g fiber",c:dark?"#52d468":"#2d7a3a"},
                                   ].filter(m=>m.v!=null).map((m,i)=>(
-                                    <span key={i} style={{display:"inline-flex",alignItems:"center",gap:5,background:`${m.c}14`,border:`1.5px solid ${m.c}44`,borderRadius:99,padding:"5px 12px",fontSize:12,fontWeight:700,color:m.c}}>
+                                    <span key={i} style={{display:"inline-flex",alignItems:"center",gap:6,background:`${m.c}22`,border:`2px solid ${m.c}66`,borderRadius:99,padding:"8px 16px",fontSize:14.5,fontWeight:800,color:m.c}}>
                                       {m.l} {m.v} {m.u}
                                     </span>
                                   ))}
