@@ -1266,6 +1266,28 @@ export default function SpiceSight() {
   const [soundOn,       setSoundOn]       = useState(()=>{
     try { return localStorage.getItem("spicesight-sound")!=="off"; } catch { return true; }
   });
+  const loopAudioRef = useRef(null);
+  // Lazily create the looping audio element (file-based = reliable on iOS)
+  function getLoopAudio(){
+    if(!loopAudioRef.current){
+      try{
+        const a = new Audio("/loading-loop.mp3");
+        a.loop = true;
+        a.volume = 0.55;
+        loopAudioRef.current = a;
+      }catch{}
+    }
+    return loopAudioRef.current;
+  }
+  function startLoop(){
+    if(!soundOn) return;
+    const a = getLoopAudio();
+    try{ a.currentTime = 0; a.play().catch(()=>{}); }catch{}
+  }
+  function stopLoop(){
+    const a = loopAudioRef.current;
+    if(a){ try{ a.pause(); a.currentTime = 0; }catch{} }
+  }
   const [errorToast,    setErrorToast]    = useState(false);
 
   // ─── Step refs for auto-advance ───────────────────────────────────────────
@@ -1539,6 +1561,7 @@ export default function SpiceSight() {
   async function generate() {
     fireParticles();
     setLoading(true);setError(null);setResult(null);
+    startLoop();  // danceable loading loop (file-based, iOS-safe)
     const veggieNote=veggies.length>0?`\nVegetables: ${veggies.join(", ")} — cook ${veggieStyle==="with"?"WITH the meat":"separately ON THE SIDE"}.`:"";
     const veggieJsonField=veggies.length>0?`,"veggie_prep":{"style":"${veggieStyle==="with"?"With the Meat":"On the Side"}","instructions":["Step 1","Step 2","Step 3"],"tip":"One veggie tip"}`:"";
 
@@ -1638,6 +1661,7 @@ Only use spices from provided list. Prioritize health.${veggies.length>0?" Provi
       setStreamPct(100);
       setResult(parsed);
       setScreen("results");
+      stopLoop();
       if(soundOn) playSuccessChime();
       window.scrollTo({top:0,behavior:"instant"});
     } catch(err) {
@@ -1648,7 +1672,7 @@ Only use spices from provided list. Prioritize health.${veggies.length>0?" Provi
       setErrorToast(true);
       setTimeout(()=>setErrorToast(false), 5000);
     }
-    finally{setLoading(false);}
+    finally{setLoading(false); stopLoop();}
   }
 
   // Go back to form keeping all selections intact
@@ -1852,7 +1876,7 @@ Only use spices from provided list. Prioritize health.${veggies.length>0?" Provi
                     </div>
 
                     {/* Sound toggle */}
-                    <div onClick={()=>{const nv=!soundOn;setSoundOn(nv);try{localStorage.setItem("spicesight-sound",nv?"on":"off");}catch{}}} style={{
+                    <div onClick={()=>{const nv=!soundOn;setSoundOn(nv);try{localStorage.setItem("spicesight-sound",nv?"on":"off");}catch{};if(!nv)stopLoop();}} style={{
                       display:"flex",alignItems:"center",justifyContent:"space-between",
                       padding:"11px 12px",borderRadius:10,cursor:"pointer",
                       background:t.mutedBg,border:`1.5px solid ${t.cardBorder}`,
