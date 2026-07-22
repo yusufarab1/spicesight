@@ -1267,6 +1267,9 @@ export default function SpiceSight() {
     try { return localStorage.getItem("spicesight-sound")!=="off"; } catch { return true; }
   });
   const loopAudioRef = useRef(null);
+  const [seenIntro, setSeenIntro] = useState(()=>{
+    try { return localStorage.getItem("spicesight-seen-intro")==="yes"; } catch { return false; }
+  });
   // Lazily create the looping audio element (file-based = reliable on iOS)
   function getLoopAudio(){
     if(!loopAudioRef.current){
@@ -1535,7 +1538,7 @@ export default function SpiceSight() {
     setTimeout(()=>setParticles([]),700);
   }
 
-  function shareRecipe() {
+  async function shareRecipe() {
     if(!result) return;
     const lines = [
       `🌶 ${result.recipe_name}`,
@@ -1550,18 +1553,32 @@ export default function SpiceSight() {
       ``,
       `💡 Pro Tip: ${result.pro_tip}`,
       ``,
-      `Made with SpiceSight ✨`,
+      `Made with SpiceSight ✨  spicesight.vercel.app`,
     ].join("\n");
-    navigator.clipboard.writeText(lines).then(()=>{
+
+    // Native share sheet on phones (opens Messages, WhatsApp, Instagram, etc.)
+    if(navigator.share){
+      try {
+        await navigator.share({ title:result.recipe_name, text:lines });
+        return;
+      } catch(e) {
+        // user cancelled the share sheet — do nothing, don't fall through to copy
+        if(e?.name==="AbortError") return;
+      }
+    }
+    // Desktop / no share support → copy to clipboard
+    try {
+      await navigator.clipboard.writeText(lines);
       setShareToast(true);
       setTimeout(()=>setShareToast(false),2500);
-    }).catch(()=>{});
+    } catch {}
   }
 
   async function generate() {
     fireParticles();
     setLoading(true);setError(null);setResult(null);
     startLoop();  // danceable loading loop (file-based, iOS-safe)
+    if(!seenIntro){ setSeenIntro(true); try{localStorage.setItem("spicesight-seen-intro","yes");}catch{} }
     const veggieNote=veggies.length>0?`\nVegetables: ${veggies.join(", ")} — cook ${veggieStyle==="with"?"WITH the meat":"separately ON THE SIDE"}.`:"";
     const veggieJsonField=veggies.length>0?`,"veggie_prep":{"style":"${veggieStyle==="with"?"With the Meat":"On the Side"}","instructions":["Step 1","Step 2","Step 3"],"tip":"One veggie tip"}`:"";
 
@@ -2138,6 +2155,31 @@ Only use spices from provided list. Prioritize health.${veggies.length>0?" Provi
               <span style={{fontSize:20}}>🌿</span>
               <div style={{height:1.5,width:60,background:`linear-gradient(90deg,${t.accent}88,transparent)`}}/>
             </div>
+
+            {/* ── First-time "how it works" banner ── */}
+            {!seenIntro&&(
+              <div style={{marginTop:22,background:dark?`linear-gradient(135deg,${t.accent}22,${t.accent}0a)`:`linear-gradient(135deg,${t.accent}12,${t.accent}04)`,border:`1.5px solid ${t.accent}44`,borderRadius:18,padding:"20px 22px",position:"relative",animation:"fadeUp 0.4s ease both"}}>
+                <button onClick={()=>{setSeenIntro(true);try{localStorage.setItem("spicesight-seen-intro","yes");}catch{}}} aria-label="Dismiss" style={{position:"absolute",top:12,right:14,background:"none",border:"none",cursor:"pointer",fontSize:18,color:t.textFaint,lineHeight:1,padding:4}}>×</button>
+                <p style={{fontFamily:"'Playfair Display',serif",fontSize:19,fontWeight:800,color:t.textPrimary,marginBottom:14,display:"flex",alignItems:"center",gap:8}}>
+                  <span>👋</span> New here? It's easy:
+                </p>
+                <div style={{display:"flex",flexDirection:"column",gap:12}}>
+                  {[
+                    {n:"1",t:"Pick your meat & how you're cooking it",s:"or tap 🎲 Surprise Me to let the AI decide"},
+                    {n:"2",t:"Add the spices you already have",s:"even just 2–3 works great"},
+                    {n:"3",t:"Hit Generate",s:"get a full recipe with health score, nutrition & timers in seconds"},
+                  ].map((row,i)=>(
+                    <div key={i} style={{display:"flex",alignItems:"flex-start",gap:12}}>
+                      <span style={{flexShrink:0,width:26,height:26,borderRadius:"50%",background:`linear-gradient(135deg,${t.accent},${t.accentLight})`,color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800,fontSize:13}}>{row.n}</span>
+                      <div>
+                        <p style={{fontSize:14.5,fontWeight:700,color:t.textPrimary,lineHeight:1.4}}>{row.t}</p>
+                        <p style={{fontSize:13,color:t.textMuted,fontWeight:500,marginTop:1,lineHeight:1.4}}>{row.s}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
             </div>
 
           {/* ── MODE TOGGLE ── */}
@@ -2965,7 +3007,7 @@ Only use spices from provided list. Prioritize health.${veggies.length>0?" Provi
                 }}
                 onMouseEnter={e=>{e.currentTarget.style.borderColor="#1a6e8a";e.currentTarget.style.color="#1a6e8a";e.currentTarget.style.boxShadow=`0 4px 20px #1a6e8a33`;}}
                 onMouseLeave={e=>{e.currentTarget.style.borderColor=t.cardBorder;e.currentTarget.style.color=t.textSecondary;e.currentTarget.style.boxShadow=t.shadow;}}>
-                  📋 Copy Recipe
+                  📤 Share Recipe
                 </button>
                 <button onClick={saveFavorite} disabled={isSaved} style={{
                   background:isSaved?"#2d7a3a":t.cardBg,
