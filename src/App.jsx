@@ -1382,6 +1382,8 @@ export default function SpiceSight() {
   const [user,          setUser]          = useState(null);
   const [showAuth,      setShowAuth]      = useState(false);
   const [showAccountMenu, setShowAccountMenu] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [installPrompt, setInstallPrompt] = useState(null);   // captured beforeinstallprompt event
   const [showIosInstall, setShowIosInstall] = useState(false); // iOS instructions modal
   const [isInstalled,   setIsInstalled]   = useState(false);
@@ -1644,6 +1646,30 @@ export default function SpiceSight() {
   async function signOut() {
     await supabase.auth.signOut();
     // onAuthStateChange fires → user becomes null → local favorites reload
+  }
+
+  async function deleteAccount() {
+    if(!user) return;
+    setDeleting(true);
+    try {
+      // 1. Delete all of the user's saved recipes from the database.
+      // (RLS ensures this only ever affects the current user's own rows.)
+      await supabase.from("recipes").delete().eq("user_id", user.id);
+      // 2. Clear any locally cached data for a clean slate.
+      try {
+        localStorage.removeItem("spicesight-favorites");
+      } catch {}
+      // 3. Sign out — this ends the session and returns them to a fresh state.
+      await supabase.auth.signOut();
+      setFavorites([]);
+      setShowDeleteConfirm(false);
+      setShowAccountMenu(false);
+    } catch(e) {
+      // If anything failed, keep the dialog open so they can retry.
+      alert("Something went wrong deleting your account. Please try again, or email futurespicesight@gmail.com.");
+    } finally {
+      setDeleting(false);
+    }
   }
 
   useEffect(()=>{
@@ -2082,6 +2108,18 @@ Only use spices from provided list. Prioritize health.${veggies.length>0?" Provi
                       onMouseEnter={e=>{e.currentTarget.style.background="#e0525215";}}
                       onMouseLeave={e=>{e.currentTarget.style.background="transparent";}}>
                         Sign Out
+                      </button>
+                    )}
+                    {user&&(
+                      <button onClick={()=>setShowDeleteConfirm(true)} style={{
+                        width:"100%",marginTop:8,padding:"9px",borderRadius:10,cursor:"pointer",
+                        background:"transparent",border:"none",
+                        color:t.textFaint,fontFamily:"'Plus Jakarta Sans',sans-serif",
+                        fontSize:12,fontWeight:600,textDecoration:"underline",transition:"color 0.2s",
+                      }}
+                      onMouseEnter={e=>{e.currentTarget.style.color="#e05252";}}
+                      onMouseLeave={e=>{e.currentTarget.style.color=t.textFaint;}}>
+                        Delete my account
                       </button>
                     )}
                   </div>
@@ -3251,6 +3289,35 @@ Only use spices from provided list. Prioritize health.${veggies.length>0?" Provi
           {/* ── iOS install instructions ── */}
           {cookingMode&&result&&(
             <CookingMode result={result} meatLabel={meatLabel} dark={dark} t={t} onClose={()=>setCookingMode(false)}/>
+          )}
+
+          {/* ── Delete account confirmation ── */}
+          {showDeleteConfirm&&(
+            <div style={{position:"fixed",inset:0,zIndex:10001,background:"rgba(0,0,0,0.6)",backdropFilter:"blur(6px)",display:"flex",alignItems:"center",justifyContent:"center",padding:20,animation:"fadeUp 0.2s ease both"}} onClick={()=>!deleting&&setShowDeleteConfirm(false)}>
+              <div onClick={e=>e.stopPropagation()} style={{width:"100%",maxWidth:400,background:dark?"#1a2030":"#fff",border:`2px solid ${dark?"#5a3030":"#e8c0c0"}`,borderRadius:24,padding:"30px 26px",boxShadow:"0 24px 64px rgba(0,0,0,0.4)",animation:"badgePop 0.35s cubic-bezier(0.34,1.56,0.64,1) both"}}>
+                <div style={{textAlign:"center",marginBottom:20}}>
+                  <div style={{fontSize:40,marginBottom:10}}>⚠️</div>
+                  <p style={{fontFamily:"'Playfair Display',serif",fontSize:23,fontWeight:900,color:t.textPrimary}}>Delete your account?</p>
+                  <p style={{fontSize:14,color:t.textMuted,fontWeight:500,marginTop:10,lineHeight:1.6}}>
+                    This permanently deletes your account and all your saved recipes. <strong style={{color:"#e05252"}}>This can't be undone.</strong>
+                  </p>
+                </div>
+                <button onClick={deleteAccount} disabled={deleting} style={{
+                  width:"100%",padding:"14px",borderRadius:12,border:"none",cursor:deleting?"default":"pointer",
+                  background:deleting?"#e0525288":"linear-gradient(135deg,#e05252,#c83838)",color:"#fff",
+                  fontFamily:"'Plus Jakarta Sans',sans-serif",fontSize:15,fontWeight:800,marginBottom:10,
+                }}>
+                  {deleting?"Deleting…":"Yes, delete everything"}
+                </button>
+                <button onClick={()=>setShowDeleteConfirm(false)} disabled={deleting} style={{
+                  width:"100%",padding:"13px",borderRadius:12,cursor:deleting?"default":"pointer",
+                  background:"transparent",border:`1.5px solid ${t.cardBorder}`,color:t.textSecondary,
+                  fontFamily:"'Plus Jakarta Sans',sans-serif",fontSize:15,fontWeight:700,
+                }}>
+                  Cancel
+                </button>
+              </div>
+            </div>
           )}
 
           {showIosInstall&&(
