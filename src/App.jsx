@@ -1363,6 +1363,7 @@ export default function SpiceSight() {
   const [surpriseMode,  setSurpriseMode]  = useState(false);
   const [surpriseProtein,setSurpriseProtein]=useState("");
   const [flavorProfile, setFlavorProfile] = useState(null);
+  const [diets,         setDiets]         = useState([]); // e.g. ["Vegan","Keto"]
   const [screen,        setScreen]        = useState("form"); // "form" | "results"
   const [flippingMeat,  setFlippingMeat]  = useState(null);
   const [bouncingTag,   setBouncingTag]   = useState(null);
@@ -1707,6 +1708,19 @@ export default function SpiceSight() {
     const fp = FLAVOR_PROFILES.find(f=>f.id===flavorProfile);
     const flavorNote = fp ? `\nFlavor direction: ${fp.keywords}` : "";
 
+    // Dietary requirements — hard constraints the recipe MUST satisfy
+    let dietNote = "";
+    if(diets.length>0){
+      const rules = {
+        "Vegan":"100% vegan — absolutely no meat, fish, dairy, eggs, or any animal products. If a protein was mentioned, replace it with a plant-based protein (tofu, tempeh, legumes, etc.) and adjust the recipe name accordingly.",
+        "Keto":"keto-friendly — very low carb (under ~10g net carbs per serving), high healthy fat. No sugar, grains, or starchy vegetables.",
+        "Gluten-Free":"completely gluten-free — no wheat, barley, rye, gluten-containing soy sauce, or any gluten ingredient.",
+        "Low-Sodium":"low-sodium — minimal added salt; lean on herbs and spices for flavor instead.",
+      };
+      const active = diets.map(d=>rules[d]).filter(Boolean);
+      dietNote = `\n\nDIETARY REQUIREMENTS (strict — the recipe MUST comply): ${active.join(" ")}`;
+    }
+
     // Meat quantity: convert whatever unit they chose into grams for the AI
     let qtyNote = "";
     if(meatQty>0){
@@ -1724,7 +1738,7 @@ export default function SpiceSight() {
     if(surpriseMode){
       const proteinHint=surpriseProtein.trim()?`The user has this protein available: ${surpriseProtein.trim()}. Use it.`:`Choose the healthiest protein that pairs best with these spices.`;
       prompt=`You are an expert culinary nutritionist and chef. ${proteinHint}
-Available spices: ${spices.join(", ")}${veggieNote}${flavorNote}${qtyNote}
+Available spices: ${spices.join(", ")}${veggieNote}${flavorNote}${qtyNote}${dietNote}
 Servings: ${servings} people — scale all ingredient amounts accordingly.
 Based ONLY on these spices, decide the best protein and cooking method to create the healthiest, most delicious meal possible.
 Return ONLY valid JSON:
@@ -1732,7 +1746,7 @@ Return ONLY valid JSON:
 Only use spices from the provided list. Prioritize health and flavor synergy.${veggies.length>0?" Provide detailed veggie prep.":""}`;
     } else {
       prompt=`You are an expert culinary nutritionist and chef. Season ${meatLabel} using ${selectedMethod==="custom"?customMethod:selectedMethod} method.${allMeatLabels.length>1?` This is a multi-protein dish combining ${meatLabel} — create a unified recipe that works for all.`:""}
-Available spices: ${spices.join(", ")}${veggieNote}${flavorNote}${qtyNote}
+Available spices: ${spices.join(", ")}${veggieNote}${flavorNote}${qtyNote}${dietNote}
 Servings: ${servings} people — scale all ingredient amounts accordingly.
 Return ONLY valid JSON:
 {"recipe_name":"Creative name","health_score":85,"health_notes":"2 sentences about health benefits.","nutrition":{"calories":420,"protein":38,"carbs":12,"fat":18,"fiber":4},"spice_mix":[{"spice":"name","amount":"1 tsp","role":"role in 5 words"}],"marinate_time":"30 minutes","cooking_instructions":["Step 1","Step 2","Step 3","Step 4","Step 5"]${veggieJsonField},"pro_tip":"One chef tip.","flavor_profile":"e.g. Smoky & Earthy"}
@@ -2806,7 +2820,48 @@ Only use spices from provided list. Prioritize health.${veggies.length>0?" Provi
               )}
             </div>
 
-            {/* SERVINGS */}
+            {/* DIETARY FILTERS */}
+            <div>
+              <div style={{display:"flex",alignItems:"center",gap:14,marginBottom:20}}>
+                <div style={{width:40,height:40,borderRadius:12,flexShrink:0,background:"linear-gradient(135deg,#2d7a3a,#4aa860)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,boxShadow:"0 4px 16px #2d7a3a55"}}>🥗</div>
+                <div>
+                  <p style={{fontSize:10,letterSpacing:3,color:"#2d7a3a",textTransform:"uppercase",fontFamily:"'Plus Jakarta Sans',sans-serif",fontWeight:700,marginBottom:2}}>Optional</p>
+                  <p style={{fontSize:20,fontFamily:"'Playfair Display',serif",fontWeight:700,color:t.textPrimary}}>Dietary Needs</p>
+                </div>
+              </div>
+              <div style={{display:"flex",flexWrap:"wrap",gap:10}}>
+                {[
+                  {id:"Vegan",emoji:"🌱",color:"#2d7a3a"},
+                  {id:"Keto",emoji:"🥑",color:"#c8840c"},
+                  {id:"Gluten-Free",emoji:"🌾",color:"#c85028"},
+                  {id:"Low-Sodium",emoji:"🧂",color:"#1a6e8a"},
+                ].map(d=>{
+                  const active=diets.includes(d.id);
+                  return (
+                    <button key={d.id} onClick={()=>setDiets(p=>active?p.filter(x=>x!==d.id):[...p,d.id])} style={{
+                      display:"inline-flex",alignItems:"center",gap:8,
+                      padding:"12px 20px",borderRadius:99,cursor:"pointer",
+                      border:`2px solid ${active?d.color:`${d.color}44`}`,
+                      background:active?`${d.color}${dark?"22":"0e"}`:t.inputBg,
+                      fontFamily:"'Plus Jakarta Sans',sans-serif",fontSize:15,fontWeight:700,
+                      color:active?d.color:t.textSecondary,transition:"all 0.2s",
+                      boxShadow:active?`0 4px 14px ${d.color}33`:"none",
+                    }}>
+                      <span style={{fontSize:18}}>{d.emoji}</span>{d.id}{active&&<span style={{fontSize:13}}>✓</span>}
+                    </button>
+                  );
+                })}
+              </div>
+              {diets.length>0&&(
+                <div style={{marginTop:12,display:"flex",alignItems:"center",gap:8,background:dark?"rgba(45,122,58,0.1)":"rgba(45,122,58,0.06)",border:"1.5px solid #2d7a3a55",borderRadius:12,padding:"11px 16px"}}>
+                  <span style={{fontSize:16}}>✅</span>
+                  <p style={{fontSize:13,color:dark?"#7ac88a":"#1e5a28",fontWeight:600}}>
+                    Recipe will be <strong>{diets.join(" + ")}</strong>
+                  </p>
+                  <button onClick={()=>setDiets([])} style={{marginLeft:"auto",background:"none",border:"none",cursor:"pointer",fontSize:18,color:"#2d7a3a",lineHeight:1,padding:0}}>×</button>
+                </div>
+              )}
+            </div>
             <div style={{...cardStyle,padding:"20px 24px"}}>
               <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:16}}>
                 <div style={{display:"flex",alignItems:"center",gap:12}}>
