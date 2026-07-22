@@ -2326,11 +2326,11 @@ Only use spices from provided list. Prioritize health.${veggies.length>0?" Provi
                     {n:"2",t:"Add the spices you already have",s:"even just 2–3 works great"},
                     {n:"3",t:"Hit Generate",s:"get a full recipe with health score, nutrition & timers in seconds"},
                   ].map((row,i)=>(
-                    <div key={i} style={{display:"flex",alignItems:"flex-start",gap:12}}>
-                      <span style={{flexShrink:0,width:26,height:26,borderRadius:"50%",background:`linear-gradient(135deg,${t.accent},${t.accentLight})`,color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800,fontSize:13}}>{row.n}</span>
-                      <div>
-                        <p style={{fontSize:14.5,fontWeight:700,color:t.textPrimary,lineHeight:1.4}}>{row.t}</p>
-                        <p style={{fontSize:13,color:t.textMuted,fontWeight:500,marginTop:1,lineHeight:1.4}}>{row.s}</p>
+                    <div key={i} style={{display:"flex",alignItems:"flex-start",gap:14,textAlign:"left"}}>
+                      <span style={{flexShrink:0,width:28,height:28,borderRadius:"50%",background:`linear-gradient(135deg,${t.accent},${t.accentLight})`,color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800,fontSize:14}}>{row.n}</span>
+                      <div style={{textAlign:"left",flex:1}}>
+                        <p style={{fontSize:15.5,fontWeight:700,color:t.textPrimary,lineHeight:1.4,textAlign:"left"}}>{row.t}</p>
+                        <p style={{fontSize:14,color:t.textSecondary,fontWeight:600,marginTop:3,lineHeight:1.5,textAlign:"left"}}>{row.s}</p>
                       </div>
                     </div>
                   ))}
