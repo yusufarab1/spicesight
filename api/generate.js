@@ -29,6 +29,26 @@ async function isAllowed(ip) {
 }
 
 export default async function handler(req, res) {
+  // ── CORS: allow requests from our own domains (the app can be loaded from
+  // any of these, but the API lives on the vercel deployment) ──
+  const allowedOrigins = [
+    'https://www.spicesight.app',
+    'https://spicesight.app',
+    'https://spicesight.vercel.app',
+  ];
+  const origin = req.headers.origin;
+  if (allowedOrigins.includes(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+  }
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Vary', 'Origin');
+
+  // Preflight
+  if (req.method === 'OPTIONS') {
+    return res.status(204).end();
+  }
+
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }

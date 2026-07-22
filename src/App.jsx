@@ -1775,7 +1775,7 @@ Only use spices from provided list. Prioritize health.${veggies.length>0?" Provi
       const timeout=setTimeout(()=>controller.abort(),60000);
       let res;
       try {
-        res=await fetch("https://spicesight.vercel.app/api/generate",{
+        res=await fetch(IS_NATIVE?"https://spicesight.vercel.app/api/generate":"/api/generate",{
           method:"POST",
           headers:{"Content-Type":"application/json"},
           body:JSON.stringify({prompt}),
