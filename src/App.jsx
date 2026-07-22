@@ -1218,6 +1218,127 @@ function AuthModal({ dark, t, onClose, onAuth }) {
   );
 }
 
+// ─── Cooking Mode: full-screen step-by-step companion ─────────────────────────
+function CookingMode({ result, meatLabel, dark, t, onClose }) {
+  const steps = result.cooking_instructions || [];
+  const [idx, setIdx] = useState(0);
+  const [remaining, setRemaining] = useState(0);
+  const [running, setRunning] = useState(false);
+  const [ringing, setRinging] = useState(false);
+  const ringRef = useRef(null);
+
+  function parseTime(text){
+    const m=text.match(/(\d+)\s*(?:to\s*\d+\s*)?(?:minutes?|mins?)/i);
+    const s=text.match(/(\d+)\s*(?:seconds?|secs?)/i);
+    if(m) return parseInt(m[1])*60;
+    if(s) return parseInt(s[1]);
+    return null;
+  }
+  function fmt(secs){const m=Math.floor(secs/60),s=secs%60;return m>0?`${m}:${String(s).padStart(2,"0")}`:`0:${String(secs).padStart(2,"0")}`;}
+
+  const stepSecs = parseTime(steps[idx]||"");
+
+  // reset timer when moving to a new step
+  useEffect(()=>{ setRemaining(0); setRunning(false); stopRing(); },[idx]);
+
+  const stopRing = ()=>{ if(ringRef.current){ringRef.current();ringRef.current=null;} setRinging(false); };
+
+  useEffect(()=>{
+    if(!running) return;
+    const id=setInterval(()=>{
+      setRemaining(r=>{
+        if(r<=1){
+          setRunning(false);
+          setRinging(true);
+          ringRef.current?.();
+          ringRef.current=startAlarmRing(()=>{ringRef.current=null;setRinging(false);});
+          return 0;
+        }
+        return r-1;
+      });
+    },1000);
+    return ()=>clearInterval(id);
+  },[running]);
+
+  useEffect(()=>()=>{ ringRef.current?.(); },[]);
+
+  // keep screen awake during cooking (where supported)
+  useEffect(()=>{
+    let lock;
+    (async()=>{ try{ lock = await navigator.wakeLock?.request("screen"); }catch{} })();
+    return ()=>{ try{ lock?.release(); }catch{} };
+  },[]);
+
+  const startStepTimer = ()=>{
+    if(ringing){ stopRing(); return; }
+    if(remaining===0 && stepSecs){ setRemaining(stepSecs); setRunning(true); }
+    else setRunning(r=>!r);
+  };
+
+  const isLast = idx===steps.length-1;
+  const sc = ["#c8440c","#c8840c","#2d7a3a","#1a6e8a","#9b2a5a"][idx%5];
+
+  return (
+    <div style={{position:"fixed",inset:0,zIndex:10000,background:dark?"#12100e":"#fdf6ee",display:"flex",flexDirection:"column",animation:"fadeUp 0.3s ease both"}}>
+      {/* Top bar */}
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"18px 22px",borderBottom:`1.5px solid ${t.cardBorder}`}}>
+        <div>
+          <p style={{fontSize:11,letterSpacing:2,color:t.accent,textTransform:"uppercase",fontWeight:800}}>Cooking Mode</p>
+          <p style={{fontFamily:"'Playfair Display',serif",fontSize:18,fontWeight:800,color:t.textPrimary,maxWidth:"70vw",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{result.recipe_name}</p>
+        </div>
+        <button onClick={onClose} aria-label="Exit cooking mode" style={{width:44,height:44,borderRadius:"50%",background:t.cardBg,border:`1.5px solid ${t.cardBorder}`,cursor:"pointer",fontSize:20,color:t.textMuted,flexShrink:0}}>×</button>
+      </div>
+
+      {/* Progress dots */}
+      <div style={{display:"flex",gap:6,padding:"16px 22px 0",justifyContent:"center",flexWrap:"wrap"}}>
+        {steps.map((_,i)=>(
+          <div key={i} onClick={()=>setIdx(i)} style={{width:i===idx?28:10,height:10,borderRadius:99,background:i===idx?sc:(i<idx?`${sc}77`:t.cardBorder),cursor:"pointer",transition:"all 0.3s"}}/>
+        ))}
+      </div>
+
+      {/* Step content */}
+      <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"20px 28px",textAlign:"center",gap:20}}>
+        <div style={{fontSize:15,fontWeight:800,letterSpacing:2,color:sc,textTransform:"uppercase"}}>Step {idx+1} of {steps.length}</div>
+        <p style={{fontFamily:"'Playfair Display',serif",fontSize:"clamp(24px,6vw,38px)",fontWeight:700,color:t.textPrimary,lineHeight:1.4,maxWidth:640}}>{steps[idx]}</p>
+
+        {/* Timer for this step (only if the step mentions a time) */}
+        {stepSecs&&(
+          <div style={{marginTop:8}}>
+            {(remaining>0||running||ringing)&&(
+              <p style={{fontFamily:"'Playfair Display',serif",fontSize:64,fontWeight:900,color:ringing?"#e05252":sc,fontVariantNumeric:"tabular-nums",lineHeight:1,marginBottom:14}}>
+                {ringing?"Time's up!":fmt(remaining)}
+              </p>
+            )}
+            <button onClick={startStepTimer} style={{
+              display:"inline-flex",alignItems:"center",gap:8,
+              background:ringing?"#e05252":running?t.cardBg:`linear-gradient(135deg,${sc},${sc}cc)`,
+              border:running?`2px solid ${sc}`:"none",borderRadius:99,padding:"14px 28px",cursor:"pointer",
+              fontFamily:"'Playfair Display',serif",fontSize:18,fontWeight:700,
+              color:ringing?"#fff":running?sc:"#fff",boxShadow:`0 6px 20px ${(ringing?"#e05252":sc)}44`,
+            }}>
+              {ringing?"🔔 Stop":running?"⏸ Pause":remaining>0?"▶ Resume":`▶ Start ${fmt(stepSecs)} timer`}
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Bottom nav */}
+      <div style={{display:"flex",gap:12,padding:"18px 22px",borderTop:`1.5px solid ${t.cardBorder}`,paddingBottom:"max(18px,env(safe-area-inset-bottom))"}}>
+        <button onClick={()=>setIdx(i=>Math.max(0,i-1))} disabled={idx===0} style={{
+          flex:1,padding:"16px",borderRadius:14,border:`2px solid ${t.cardBorder}`,background:t.cardBg,
+          cursor:idx===0?"default":"pointer",opacity:idx===0?0.4:1,
+          fontFamily:"'Playfair Display',serif",fontSize:16,fontWeight:700,color:t.textSecondary,
+        }}>← Back</button>
+        {isLast?(
+          <button onClick={onClose} style={{flex:2,padding:"16px",borderRadius:14,border:"none",cursor:"pointer",background:"linear-gradient(135deg,#2d7a3a,#4aa860)",color:"#fff",fontFamily:"'Playfair Display',serif",fontSize:16,fontWeight:800,boxShadow:"0 6px 20px #2d7a3a55"}}>✓ Done Cooking!</button>
+        ):(
+          <button onClick={()=>setIdx(i=>Math.min(steps.length-1,i+1))} style={{flex:2,padding:"16px",borderRadius:14,border:"none",cursor:"pointer",background:`linear-gradient(135deg,${t.accent},${t.accentLight})`,color:"#fff",fontFamily:"'Playfair Display',serif",fontSize:16,fontWeight:800,boxShadow:`0 6px 20px ${t.accent}55`}}>Next Step →</button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── Main App ─────────────────────────────────────────────────────────────────
 export default function SpiceSight() {
   const [dark,          setDark]          = useState(false);
@@ -1270,6 +1391,7 @@ export default function SpiceSight() {
   const [seenIntro, setSeenIntro] = useState(()=>{
     try { return localStorage.getItem("spicesight-seen-intro")==="yes"; } catch { return false; }
   });
+  const [cookingMode, setCookingMode] = useState(false);
   // Lazily create the looping audio element (file-based = reliable on iOS)
   function getLoopAudio(){
     if(!loopAudioRef.current){
@@ -2921,6 +3043,17 @@ Only use spices from provided list. Prioritize health.${veggies.length>0?" Provi
                   </div>
                   <span className="step-hint" style={{fontSize:13,color:t.textPrimary,fontStyle:"italic",fontWeight:600,background:t.accentBg,border:`1px solid ${t.accent}44`,borderRadius:99,padding:"5px 14px",whiteSpace:"nowrap"}}>👆 Click any step to mark done ✓</span>
                 </div>
+                <button onClick={()=>setCookingMode(true)} style={{
+                  width:"100%",marginBottom:18,padding:"16px",borderRadius:14,border:"none",cursor:"pointer",
+                  background:`linear-gradient(135deg,${t.accent},${t.accentLight})`,color:"#fff",
+                  fontFamily:"'Playfair Display',serif",fontSize:17,fontWeight:800,
+                  boxShadow:`0 8px 24px ${t.accent}55`,display:"flex",alignItems:"center",justifyContent:"center",gap:10,
+                  transition:"transform 0.2s",
+                }}
+                onMouseEnter={e=>e.currentTarget.style.transform="translateY(-2px)"}
+                onMouseLeave={e=>e.currentTarget.style.transform="translateY(0)"}>
+                  <span style={{fontSize:20}}>👨‍🍳</span> Start Cooking Mode
+                </button>
                 <CookingSteps steps={result.cooking_instructions} t={t}/>
               </div>
 
@@ -3033,6 +3166,10 @@ Only use spices from provided list. Prioritize health.${veggies.length>0?" Provi
 
           {/* ── AUTH MODAL ── */}
           {/* ── iOS install instructions ── */}
+          {cookingMode&&result&&(
+            <CookingMode result={result} meatLabel={meatLabel} dark={dark} t={t} onClose={()=>setCookingMode(false)}/>
+          )}
+
           {showIosInstall&&(
             <div style={{position:"fixed",inset:0,zIndex:9999,background:"rgba(0,0,0,0.6)",backdropFilter:"blur(6px)",display:"flex",alignItems:"center",justifyContent:"center",padding:20,animation:"fadeUp 0.2s ease both"}} onClick={()=>setShowIosInstall(false)}>
               <div onClick={e=>e.stopPropagation()} style={{width:"100%",maxWidth:380,background:dark?"#1a2030":"#fff",border:`2px solid ${dark?"#3a4660":t.cardBorder}`,borderRadius:24,padding:"30px 26px",boxShadow:"0 24px 64px rgba(0,0,0,0.4)",animation:"badgePop 0.35s cubic-bezier(0.34,1.56,0.64,1) both"}}>
