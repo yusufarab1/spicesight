@@ -1692,7 +1692,7 @@ export default function SpiceSight() {
       ``,
       `💡 Pro Tip: ${result.pro_tip}`,
       ``,
-      `Made with SpiceSight ✨  spicesight.vercel.app`,
+      `Made with SpiceSight ✨  spicesight.app`,
     ].join("\n");
 
     // Native share sheet on phones (opens Messages, WhatsApp, Instagram, etc.)
