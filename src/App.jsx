@@ -445,6 +445,93 @@ function playTimerChime() {
   try { navigator.vibrate?.([200,100,200,100,400]); } catch {}
 }
 
+// ─── Generation ambience: a soft lo-fi pad that loops while the AI works ──────
+// Returns a stop() function. Pure Web Audio — no files, no copyright risk.
+function startCookingAmbience() {
+  let ctx;
+  try {
+    ctx = new (window.AudioContext||window.webkitAudioContext)();
+  } catch { return ()=>{}; }
+
+  const master = ctx.createGain();
+  master.gain.setValueAtTime(0, ctx.currentTime);
+  master.gain.linearRampToValueAtTime(0.16, ctx.currentTime + 0.8); // gentle fade-in
+  // soft lowpass so it's warm, never harsh
+  const lp = ctx.createBiquadFilter();
+  lp.type = "lowpass";
+  lp.frequency.value = 900;
+  lp.Q.value = 0.6;
+  lp.connect(master);
+  master.connect(ctx.destination);
+
+  // Warm chord (Cmaj9-ish) held as a slowly shimmering pad
+  const freqs = [130.81, 196.00, 246.94, 329.63, 392.00]; // C3 G3 B3 E4 G4
+  const oscs = [];
+  freqs.forEach((f, i) => {
+    const o = ctx.createOscillator();
+    o.type = "sine";
+    o.frequency.value = f;
+    const g = ctx.createGain();
+    g.gain.value = 0.2 / (i*0.35 + 1);
+    // slow LFO on gain for a gentle breathing shimmer
+    const lfo = ctx.createOscillator();
+    lfo.frequency.value = 0.08 + i*0.03;
+    const lfoGain = ctx.createGain();
+    lfoGain.gain.value = 0.06;
+    lfo.connect(lfoGain);
+    lfoGain.connect(g.gain);
+    o.connect(g); g.connect(lp);
+    o.start(); lfo.start();
+    oscs.push(o, lfo);
+  });
+
+  // soft occasional marimba plink for movement (in key)
+  const notes = [523.25, 659.25, 783.99, 587.33]; // C5 E5 G5 D5
+  const plinkTimer = setInterval(() => {
+    try {
+      const f = notes[Math.floor(Math.random()*notes.length)];
+      const o = ctx.createOscillator(); o.type="triangle"; o.frequency.value=f;
+      const g = ctx.createGain();
+      const t0 = ctx.currentTime;
+      g.gain.setValueAtTime(0, t0);
+      g.gain.linearRampToValueAtTime(0.08, t0+0.02);
+      g.gain.exponentialRampToValueAtTime(0.001, t0+1.2);
+      o.connect(g); g.connect(lp);
+      o.start(t0); o.stop(t0+1.3);
+    } catch {}
+  }, 1600);
+
+  let stopped = false;
+  return () => {
+    if (stopped) return; stopped = true;
+    clearInterval(plinkTimer);
+    try {
+      master.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.4); // fade out
+      setTimeout(()=>{ try{oscs.forEach(o=>o.stop());}catch{} try{ctx.close();}catch{} }, 500);
+    } catch { try{ctx.close();}catch{} }
+  };
+}
+
+// ─── Success chime: a bright, satisfying "ta-da" when the recipe is ready ─────
+function playSuccessChime() {
+  try {
+    const ctx = new (window.AudioContext||window.webkitAudioContext)();
+    // rising major arpeggio + a shimmer on top
+    [[523.25,0],[659.25,0.09],[783.99,0.18],[1046.5,0.28]].forEach(([f,d])=>{
+      const o=ctx.createOscillator(); o.type="sine"; o.frequency.value=f;
+      const g=ctx.createGain();
+      o.connect(g); g.connect(ctx.destination);
+      const t0=ctx.currentTime+d;
+      g.gain.setValueAtTime(0,t0);
+      g.gain.linearRampToValueAtTime(0.32,t0+0.02);
+      g.gain.exponentialRampToValueAtTime(0.001,t0+0.6);
+      o.start(t0); o.stop(t0+0.65);
+    });
+    setTimeout(()=>ctx.close(),1400);
+  } catch {}
+  try { navigator.vibrate?.(120); } catch {}
+}
+
 // Repeating alarm: chimes every ~1.8s for up to 15 seconds, or until stopped.
 // Returns a stop function.
 function startAlarmRing(onEnd) {
@@ -1243,6 +1330,10 @@ export default function SpiceSight() {
   const [installPrompt, setInstallPrompt] = useState(null);   // captured beforeinstallprompt event
   const [showIosInstall, setShowIosInstall] = useState(false); // iOS instructions modal
   const [isInstalled,   setIsInstalled]   = useState(false);
+  const [soundOn,       setSoundOn]       = useState(()=>{
+    try { return localStorage.getItem("spicesight-sound")!=="off"; } catch { return true; }
+  });
+  const ambienceRef = useRef(null);
   const [errorToast,    setErrorToast]    = useState(false);
 
   // ─── Step refs for auto-advance ───────────────────────────────────────────
@@ -1516,6 +1607,9 @@ export default function SpiceSight() {
   async function generate() {
     fireParticles();
     setLoading(true);setError(null);setResult(null);
+    // Start the lo-fi cooking ambience (tapping Generate counts as the user
+    // interaction browsers require to allow audio)
+    if(soundOn){ try{ ambienceRef.current?.(); ambienceRef.current=startCookingAmbience(); }catch{} }
     const veggieNote=veggies.length>0?`\nVegetables: ${veggies.join(", ")} — cook ${veggieStyle==="with"?"WITH the meat":"separately ON THE SIDE"}.`:"";
     const veggieJsonField=veggies.length>0?`,"veggie_prep":{"style":"${veggieStyle==="with"?"With the Meat":"On the Side"}","instructions":["Step 1","Step 2","Step 3"],"tip":"One veggie tip"}`:"";
 
@@ -1615,6 +1709,9 @@ Only use spices from provided list. Prioritize health.${veggies.length>0?" Provi
       setStreamPct(100);
       setResult(parsed);
       setScreen("results");
+      // Stop the ambience and celebrate with a success chime
+      try{ ambienceRef.current?.(); ambienceRef.current=null; }catch{}
+      if(soundOn) playSuccessChime();
       window.scrollTo({top:0,behavior:"instant"});
     } catch(err) {
       const msg=err.name==="AbortError"
@@ -1624,7 +1721,7 @@ Only use spices from provided list. Prioritize health.${veggies.length>0?" Provi
       setErrorToast(true);
       setTimeout(()=>setErrorToast(false), 5000);
     }
-    finally{setLoading(false);}
+    finally{setLoading(false); try{ ambienceRef.current?.(); ambienceRef.current=null; }catch{}}
   }
 
   // Go back to form keeping all selections intact
@@ -1822,6 +1919,27 @@ Only use spices from provided list. Prioritize health.${veggies.length>0?" Provi
                       }}>
                         <span style={{
                           position:"absolute",top:2,left:dark?18:2,width:18,height:18,borderRadius:"50%",
+                          background:"#fff",transition:"left 0.25s",boxShadow:"0 1px 4px rgba(0,0,0,0.3)",
+                        }}/>
+                      </span>
+                    </div>
+
+                    {/* Sound toggle */}
+                    <div onClick={()=>{const nv=!soundOn;setSoundOn(nv);try{localStorage.setItem("spicesight-sound",nv?"on":"off");}catch{};if(!nv){try{ambienceRef.current?.();ambienceRef.current=null;}catch{}}}} style={{
+                      display:"flex",alignItems:"center",justifyContent:"space-between",
+                      padding:"11px 12px",borderRadius:10,cursor:"pointer",
+                      background:t.mutedBg,border:`1.5px solid ${t.cardBorder}`,
+                      marginTop:10,marginBottom:user?12:0,userSelect:"none",
+                    }}>
+                      <span style={{fontSize:14,fontWeight:700,color:t.textPrimary,display:"flex",alignItems:"center",gap:8}}>
+                        <span style={{fontSize:16}}>{soundOn?"🔊":"🔇"}</span>{soundOn?"Sound On":"Sound Off"}
+                      </span>
+                      <span style={{
+                        width:38,height:22,borderRadius:99,position:"relative",flexShrink:0,
+                        background:soundOn?t.accent:t.cardBorder,transition:"background 0.25s",
+                      }}>
+                        <span style={{
+                          position:"absolute",top:2,left:soundOn?18:2,width:18,height:18,borderRadius:"50%",
                           background:"#fff",transition:"left 0.25s",boxShadow:"0 1px 4px rgba(0,0,0,0.3)",
                         }}/>
                       </span>
