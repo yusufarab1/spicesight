@@ -2365,6 +2365,55 @@ Only use spices from provided list. Prioritize health.${veggies.length>0?" Provi
                     placeholder="e.g. Chicken, Beef, Fish... or leave blank 🎲"
                     style={{...inputStyle,border:`2px solid ${t.accent}55`,background:t.inputBg}}
                   />
+
+                  {/* ── HOW MUCH DO YOU HAVE? (only once a protein is typed) ── */}
+                  {surpriseProtein.trim()&&(
+                    <div style={{marginTop:14,background:t.inputBg,border:`1.5px solid ${t.cardBorder}`,borderRadius:16,padding:"16px 18px"}}>
+                      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:8,marginBottom:12}}>
+                        <p style={{fontSize:14,fontWeight:700,color:t.textPrimary,display:"flex",alignItems:"center",gap:7}}>
+                          <span style={{fontSize:16}}>⚖️</span> How much do you have? <span style={{fontSize:12,fontWeight:600,color:t.textFaint}}>(optional)</span>
+                        </p>
+                        <button onClick={()=>setShowSizeGuide(s=>!s)} style={{background:"none",border:"none",cursor:"pointer",fontSize:12,fontWeight:700,color:t.accent,textDecoration:"underline",padding:0}}>
+                          {showSizeGuide?"Hide guide":"Not sure?"}
+                        </button>
+                      </div>
+                      <div style={{display:"flex",gap:10,alignItems:"stretch",flexWrap:"wrap"}}>
+                        <input type="text" inputMode="decimal" placeholder="0" value={meatQty}
+                          onChange={e=>{const v=e.target.value;if(/^\d*\.?\d*$/.test(v))setMeatQty(v);}}
+                          style={{flex:"1 1 90px",minWidth:0,background:dark?"#0a0e16":"#fff",border:`2px solid ${dark?"#4a5a78":t.inputBorder}`,borderRadius:10,padding:"11px 14px",color:dark?"#fff":t.textPrimary,fontFamily:"'Playfair Display',serif",fontSize:20,fontWeight:700,outline:"none",textAlign:"center"}}/>
+                        <div style={{display:"flex",gap:4,background:dark?"#0a0e16":"#fff",border:`2px solid ${dark?"#4a5a78":t.inputBorder}`,borderRadius:10,padding:4}}>
+                          {["oz","g","pieces"].map(u=>(
+                            <button key={u} onClick={()=>setMeatQtyUnit(u)} style={{padding:"7px 14px",borderRadius:7,border:"none",cursor:"pointer",fontFamily:"'Plus Jakarta Sans',sans-serif",fontSize:13,fontWeight:700,background:meatQtyUnit===u?`linear-gradient(135deg,${t.accent},${t.accentLight})`:"transparent",color:meatQtyUnit===u?"#fff":t.textMuted,transition:"all 0.2s",whiteSpace:"nowrap"}}>{u}</button>
+                          ))}
+                        </div>
+                      </div>
+                      {meatQty>0&&(
+                        <p style={{fontSize:12.5,fontWeight:600,color:t.accent,marginTop:10,textAlign:"center"}}>
+                          {meatQtyUnit==="oz"&&`≈ ${Math.round(Number(meatQty)*28.35)} g total`}
+                          {meatQtyUnit==="g"&&`≈ ${(Number(meatQty)/28.35).toFixed(1)} oz total`}
+                          {meatQtyUnit==="pieces"&&`≈ ${Math.round(Number(meatQty)*5)} oz / ${Math.round(Number(meatQty)*142)} g (estimated)`}
+                        </p>
+                      )}
+                      {showSizeGuide&&(
+                        <div style={{marginTop:12,background:t.mutedBg,border:`1.5px solid ${t.cardBorder}`,borderRadius:12,padding:"14px 16px",animation:"fadeUp 0.25s ease both"}}>
+                          <p style={{fontSize:12.5,fontWeight:700,color:t.textPrimary,marginBottom:8}}>👋 Eyeball it with your hand:</p>
+                          {[
+                            {icon:"🖐️",txt:"Palm-sized portion",amt:"≈ 4 oz / 115 g"},
+                            {icon:"🃏",txt:"Deck of cards",amt:"≈ 3 oz / 85 g"},
+                            {icon:"✊",txt:"Your fist",amt:"≈ 8 oz / 225 g"},
+                            {icon:"🍗",txt:"1 chicken breast",amt:"≈ 6 oz / 170 g"},
+                            {icon:"🍗",txt:"1 chicken thigh",amt:"≈ 4 oz / 115 g"},
+                          ].map((row,i)=>(
+                            <div key={i} style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:10,padding:"4px 0",fontSize:12.5}}>
+                              <span style={{color:t.textSecondary,fontWeight:500,display:"flex",alignItems:"center",gap:7}}><span>{row.icon}</span>{row.txt}</span>
+                              <span style={{color:t.textMuted,fontWeight:700,whiteSpace:"nowrap"}}>{row.amt}</span>
+                            </div>
+                          ))}
+                          <p style={{fontSize:11.5,color:t.textFaint,fontWeight:500,marginTop:8,lineHeight:1.5}}>Or just leave it blank — we'll size the recipe to your servings instead.</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
                 <div style={{height:"1.5px",background:`linear-gradient(90deg,transparent,${t.cardBorder},transparent)`,margin:"8px 0"}}/>
               </div>
