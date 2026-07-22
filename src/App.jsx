@@ -1384,6 +1384,7 @@ export default function SpiceSight() {
   const [showAccountMenu, setShowAccountMenu] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [pendingDeletion, setPendingDeletion] = useState(null); // {purgeAt} if scheduled
   const [installPrompt, setInstallPrompt] = useState(null);   // captured beforeinstallprompt event
   const [showIosInstall, setShowIosInstall] = useState(false); // iOS instructions modal
   const [isInstalled,   setIsInstalled]   = useState(false);
@@ -1521,6 +1522,7 @@ export default function SpiceSight() {
         setUser(null);
       } else {
         setUser(verified.user);
+        checkPendingDeletion();
       }
     });
     const {data:sub} = supabase.auth.onAuthStateChange((event,session)=>{
@@ -1528,9 +1530,37 @@ export default function SpiceSight() {
       // don't let the cached-session event bypass it
       if(event==="INITIAL_SESSION") return;
       setUser(session?.user||null);
+      if(session?.user) checkPendingDeletion();
     });
     return ()=>sub?.subscription?.unsubscribe();
   },[]);
+
+  // On sign-in, ask the server if this account is scheduled for deletion.
+  // If the 14-day grace period expired, the server purges it and returns
+  // {purged:true}; if still pending, we show the reactivate screen.
+  async function checkPendingDeletion() {
+    try {
+      const { data:{ session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      if(!token) return;
+      const endpoint = IS_NATIVE ? "https://spicesight.vercel.app/api/check-deletion" : "/api/check-deletion";
+      const resp = await fetch(endpoint, {
+        method:"POST",
+        headers:{ "Authorization":`Bearer ${token}` },
+      });
+      if(!resp.ok) return;
+      const data = await resp.json();
+      if(data.purged){
+        // account was permanently deleted — sign out to a clean slate
+        await supabase.auth.signOut().catch(()=>{});
+        setUser(null); setFavorites([]);
+      } else if(data.scheduled){
+        setPendingDeletion({ purgeAt: data.purgeAt });
+      } else {
+        setPendingDeletion(null);
+      }
+    } catch {}
+  }
 
   // ─── Load recipes: cloud if signed in (migrating any local ones), else local
   useEffect(()=>{
@@ -1652,24 +1682,46 @@ export default function SpiceSight() {
     if(!user) return;
     setDeleting(true);
     try {
-      // 1. Delete all of the user's saved recipes from the database.
-      // (RLS ensures this only ever affects the current user's own rows.)
-      await supabase.from("recipes").delete().eq("user_id", user.id);
-      // 2. Clear any locally cached data for a clean slate.
-      try {
-        localStorage.removeItem("spicesight-favorites");
-      } catch {}
-      // 3. Sign out — this ends the session and returns them to a fresh state.
+      const { data:{ session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      if(!token) throw new Error("no session");
+
+      // Schedule deletion (14-day grace period) rather than deleting immediately
+      const endpoint = IS_NATIVE ? "https://spicesight.vercel.app/api/delete-user" : "/api/delete-user";
+      const resp = await fetch(endpoint, {
+        method:"POST",
+        headers:{ "Authorization":`Bearer ${token}`, "Content-Type":"application/json" },
+        body: JSON.stringify({ action:"schedule" }),
+      });
+      if(!resp.ok) throw new Error("schedule failed");
+
+      // Sign out — the grace period is now running. If they sign back in
+      // within 14 days they'll be offered the chance to reactivate.
+      try { localStorage.removeItem("spicesight-favorites"); } catch {}
       await supabase.auth.signOut();
       setFavorites([]);
       setShowDeleteConfirm(false);
       setShowAccountMenu(false);
     } catch(e) {
-      // If anything failed, keep the dialog open so they can retry.
-      alert("Something went wrong deleting your account. Please try again, or email futurespicesight@gmail.com.");
+      alert("Something went wrong. Please try again, or email futurespicesight@gmail.com.");
     } finally {
       setDeleting(false);
     }
+  }
+
+  async function reactivateAccount() {
+    try {
+      const { data:{ session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      if(!token) return;
+      const endpoint = IS_NATIVE ? "https://spicesight.vercel.app/api/delete-user" : "/api/delete-user";
+      await fetch(endpoint, {
+        method:"POST",
+        headers:{ "Authorization":`Bearer ${token}`, "Content-Type":"application/json" },
+        body: JSON.stringify({ action:"reactivate" }),
+      });
+      setPendingDeletion(null);
+    } catch {}
   }
 
   useEffect(()=>{
@@ -3287,6 +3339,37 @@ Only use spices from provided list. Prioritize health.${veggies.length>0?" Provi
 
           {/* ── AUTH MODAL ── */}
           {/* ── iOS install instructions ── */}
+          {/* ── Account scheduled for deletion (grace period) ── */}
+          {pendingDeletion&&user&&(
+            <div style={{position:"fixed",inset:0,zIndex:10002,background:dark?"#12100e":"#fdf6ee",display:"flex",alignItems:"center",justifyContent:"center",padding:24,animation:"fadeUp 0.3s ease both"}}>
+              <div style={{width:"100%",maxWidth:440,textAlign:"center"}}>
+                <div style={{fontSize:52,marginBottom:16}}>⏳</div>
+                <p style={{fontFamily:"'Playfair Display',serif",fontSize:28,fontWeight:900,color:t.textPrimary,marginBottom:12}}>Your account is scheduled for deletion</p>
+                <p style={{fontSize:15,color:t.textSecondary,fontWeight:500,lineHeight:1.6,marginBottom:8}}>
+                  Your account and saved recipes will be permanently deleted on{" "}
+                  <strong style={{color:t.accent}}>{pendingDeletion.purgeAt?new Date(pendingDeletion.purgeAt).toLocaleDateString(undefined,{month:"long",day:"numeric",year:"numeric"}):"the scheduled date"}</strong>.
+                </p>
+                <p style={{fontSize:14,color:t.textMuted,fontWeight:500,lineHeight:1.6,marginBottom:28}}>
+                  Changed your mind? You can restore your account and keep everything.
+                </p>
+                <button onClick={reactivateAccount} style={{
+                  width:"100%",padding:"16px",borderRadius:14,border:"none",cursor:"pointer",marginBottom:12,
+                  background:"linear-gradient(135deg,#2d7a3a,#4aa860)",color:"#fff",
+                  fontFamily:"'Playfair Display',serif",fontSize:17,fontWeight:800,boxShadow:"0 8px 24px #2d7a3a55",
+                }}>
+                  ✓ Keep my account
+                </button>
+                <button onClick={()=>{supabase.auth.signOut();setPendingDeletion(null);setUser(null);}} style={{
+                  width:"100%",padding:"13px",borderRadius:14,cursor:"pointer",
+                  background:"transparent",border:`1.5px solid ${t.cardBorder}`,color:t.textMuted,
+                  fontFamily:"'Plus Jakarta Sans',sans-serif",fontSize:14,fontWeight:700,
+                }}>
+                  Sign out (delete as scheduled)
+                </button>
+              </div>
+            </div>
+          )}
+
           {cookingMode&&result&&(
             <CookingMode result={result} meatLabel={meatLabel} dark={dark} t={t} onClose={()=>setCookingMode(false)}/>
           )}
@@ -3299,7 +3382,7 @@ Only use spices from provided list. Prioritize health.${veggies.length>0?" Provi
                   <div style={{fontSize:40,marginBottom:10}}>⚠️</div>
                   <p style={{fontFamily:"'Playfair Display',serif",fontSize:23,fontWeight:900,color:t.textPrimary}}>Delete your account?</p>
                   <p style={{fontSize:14,color:t.textMuted,fontWeight:500,marginTop:10,lineHeight:1.6}}>
-                    This permanently deletes your account and all your saved recipes. <strong style={{color:"#e05252"}}>This can't be undone.</strong>
+                    Your account will be scheduled for deletion. You'll have <strong style={{color:t.accent}}>14 days</strong> to change your mind by signing back in — after that, your account and all saved recipes are permanently deleted.
                   </p>
                 </div>
                 <button onClick={deleteAccount} disabled={deleting} style={{
@@ -3307,7 +3390,7 @@ Only use spices from provided list. Prioritize health.${veggies.length>0?" Provi
                   background:deleting?"#e0525288":"linear-gradient(135deg,#e05252,#c83838)",color:"#fff",
                   fontFamily:"'Plus Jakarta Sans',sans-serif",fontSize:15,fontWeight:800,marginBottom:10,
                 }}>
-                  {deleting?"Deleting…":"Yes, delete everything"}
+                  {deleting?"Scheduling…":"Schedule deletion"}
                 </button>
                 <button onClick={()=>setShowDeleteConfirm(false)} disabled={deleting} style={{
                   width:"100%",padding:"13px",borderRadius:12,cursor:deleting?"default":"pointer",
