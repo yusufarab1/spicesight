@@ -1240,6 +1240,9 @@ export default function SpiceSight() {
   const [user,          setUser]          = useState(null);
   const [showAuth,      setShowAuth]      = useState(false);
   const [showAccountMenu, setShowAccountMenu] = useState(false);
+  const [installPrompt, setInstallPrompt] = useState(null);   // captured beforeinstallprompt event
+  const [showIosInstall, setShowIosInstall] = useState(false); // iOS instructions modal
+  const [isInstalled,   setIsInstalled]   = useState(false);
   const [errorToast,    setErrorToast]    = useState(false);
 
   // ─── Step refs for auto-advance ───────────────────────────────────────────
@@ -1303,6 +1306,35 @@ export default function SpiceSight() {
     });
     return ()=>{ sub.then?.(s=>s.remove()) ?? sub.remove?.(); };
   },[]);
+
+  // ─── PWA install prompt: capture the event so we can trigger it on demand
+  useEffect(()=>{
+    if(IS_NATIVE) return; // already the native app — no install button needed
+    // Already installed? (running in standalone display mode)
+    const standalone = window.matchMedia?.("(display-mode: standalone)")?.matches
+      || window.navigator.standalone === true;
+    if(standalone){ setIsInstalled(true); return; }
+
+    const onPrompt = (e)=>{ e.preventDefault(); setInstallPrompt(e); };
+    window.addEventListener("beforeinstallprompt", onPrompt);
+    const onInstalled = ()=>{ setIsInstalled(true); setInstallPrompt(null); };
+    window.addEventListener("appinstalled", onInstalled);
+    return ()=>{
+      window.removeEventListener("beforeinstallprompt", onPrompt);
+      window.removeEventListener("appinstalled", onInstalled);
+    };
+  },[]);
+
+  const isIos = typeof navigator!=="undefined" && /iphone|ipad|ipod/i.test(navigator.userAgent);
+  async function handleInstall(){
+    if(installPrompt){
+      installPrompt.prompt();
+      await installPrompt.userChoice.catch(()=>{});
+      setInstallPrompt(null);
+    } else if(isIos){
+      setShowIosInstall(true);
+    }
+  }
 
   // ─── Auth session: restore on load, listen for changes ────────────────────
   useEffect(()=>{
@@ -2015,6 +2047,23 @@ Only use spices from provided list. Prioritize health.${veggies.length>0?" Provi
             <p style={{color:t.textMuted,fontSize:"clamp(14px,3.5vw,17px)",fontWeight:500,marginTop:14,letterSpacing:0.3,lineHeight:1.6,transition:"color 0.4s",padding:"0 8px"}}>
               {surpriseMode?"Just add your spices — we'll decide everything else.":"Tell us your spices & meat —\nwe craft the perfect healthy recipe."}
             </p>
+
+            {/* ── Install App button (web only, hides in native app / if installed) ── */}
+            {!IS_NATIVE&&!isInstalled&&(installPrompt||isIos)&&(
+              <div style={{display:"flex",justifyContent:"center",marginTop:18}}>
+                <button onClick={handleInstall} style={{
+                  display:"inline-flex",alignItems:"center",gap:10,
+                  background:dark?"rgba(22,18,16,0.9)":"rgba(255,255,255,0.95)",
+                  border:`2px solid ${t.accent}`,borderRadius:99,padding:"11px 24px",cursor:"pointer",
+                  fontFamily:"'Plus Jakarta Sans',sans-serif",fontSize:15,fontWeight:700,color:t.accent,
+                  boxShadow:`0 6px 20px ${t.accent}33`,transition:"all 0.25s",backdropFilter:"blur(12px)",
+                }}
+                onMouseEnter={e=>{e.currentTarget.style.transform="translateY(-2px)";e.currentTarget.style.boxShadow=`0 10px 28px ${t.accent}55`;}}
+                onMouseLeave={e=>{e.currentTarget.style.transform="translateY(0)";e.currentTarget.style.boxShadow=`0 6px 20px ${t.accent}33`;}}>
+                  <span style={{fontSize:18}}>📲</span> Install App
+                </button>
+              </div>
+            )}
             <div style={{display:"flex",alignItems:"center",gap:16,justifyContent:"center",marginTop:24}}>
               <div style={{height:1.5,width:60,background:`linear-gradient(90deg,transparent,${t.accent}88)`}}/>
               <span style={{fontSize:20}}>🌿</span>
@@ -2784,6 +2833,32 @@ Only use spices from provided list. Prioritize health.${veggies.length>0?" Provi
           <QuickTimer dark={dark} t={t}/>
 
           {/* ── AUTH MODAL ── */}
+          {/* ── iOS install instructions ── */}
+          {showIosInstall&&(
+            <div style={{position:"fixed",inset:0,zIndex:9999,background:"rgba(0,0,0,0.6)",backdropFilter:"blur(6px)",display:"flex",alignItems:"center",justifyContent:"center",padding:20,animation:"fadeUp 0.2s ease both"}} onClick={()=>setShowIosInstall(false)}>
+              <div onClick={e=>e.stopPropagation()} style={{width:"100%",maxWidth:380,background:dark?"#1a2030":"#fff",border:`2px solid ${dark?"#3a4660":t.cardBorder}`,borderRadius:24,padding:"30px 26px",boxShadow:"0 24px 64px rgba(0,0,0,0.4)",animation:"badgePop 0.35s cubic-bezier(0.34,1.56,0.64,1) both"}}>
+                <div style={{textAlign:"center",marginBottom:20}}>
+                  <div style={{fontSize:40,marginBottom:10}}>📲</div>
+                  <p style={{fontFamily:"'Playfair Display',serif",fontSize:23,fontWeight:900,color:t.textPrimary}}>Install SpiceSight</p>
+                  <p style={{fontSize:14,color:t.textMuted,fontWeight:500,marginTop:6}}>Add it to your home screen in 2 taps:</p>
+                </div>
+                {[
+                  {n:"1",txt:"Tap the Share button",sub:"the square with an arrow at the bottom of Safari",icon:"􀈂"},
+                  {n:"2",txt:'Tap "Add to Home Screen"',sub:"scroll down if you don't see it",icon:"➕"},
+                ].map((s,i)=>(
+                  <div key={i} style={{display:"flex",alignItems:"flex-start",gap:14,padding:"12px 0",borderBottom:i===0?`1px solid ${t.cardBorder}`:"none"}}>
+                    <span style={{flexShrink:0,width:32,height:32,borderRadius:"50%",background:`linear-gradient(135deg,${t.accent},${t.accentLight})`,color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:800,fontSize:15}}>{s.n}</span>
+                    <div>
+                      <p style={{fontSize:15,fontWeight:700,color:t.textPrimary}}>{s.txt}</p>
+                      <p style={{fontSize:12.5,color:t.textMuted,fontWeight:500,marginTop:2,lineHeight:1.4}}>{s.sub}</p>
+                    </div>
+                  </div>
+                ))}
+                <button onClick={()=>setShowIosInstall(false)} style={{width:"100%",marginTop:20,padding:"13px",borderRadius:12,border:"none",cursor:"pointer",background:`linear-gradient(135deg,${t.accent},${t.accentLight})`,color:"#fff",fontFamily:"'Plus Jakarta Sans',sans-serif",fontSize:15,fontWeight:700}}>Got it</button>
+              </div>
+            </div>
+          )}
+
           {showAuth&&(
             <AuthModal dark={dark} t={t} onClose={()=>setShowAuth(false)} onAuth={u=>setUser(u)}/>
           )}
