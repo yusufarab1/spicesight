@@ -1,5 +1,10 @@
 {
   "appId": "com.spicesight.app",
   "appName": "SpiceSight",
-  "webDir": "dist"
+  "webDir": "dist",
+  "plugins": {
+    "CapacitorHttp": {
+      "enabled": true
+    }
+  }
 }

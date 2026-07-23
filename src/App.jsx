@@ -1851,43 +1851,59 @@ Only use spices from provided list. Prioritize health.${veggies.length>0?" Provi
       // Timeout guard: a phone with flaky signal shouldn't spin forever
       const controller=new AbortController();
       const timeout=setTimeout(()=>controller.abort(),60000);
-      let res;
+      let res, buffer="";
       try {
-        res=await fetch(IS_NATIVE?"https://spicesight.vercel.app/api/generate":"/api/generate",{
-          method:"POST",
-          headers:{"Content-Type":"application/json"},
-          body:JSON.stringify({prompt}),
-          signal:controller.signal,
-        });
-      } finally { clearTimeout(timeout); }
-
-      if(!res.ok){
-        const data=await res.json().catch(()=>({}));
-        throw new Error(data?.error||`Request failed (${res.status})`);
-      }
-
-      // ── Read the response. Browsers stream it (live progress bar); the
-      // Android WebView's streaming reader (res.body.getReader) is unreliable,
-      // so in the native app we read the whole body at once instead. Same data.
-      let buffer="";
-      if(IS_NATIVE || !res.body?.getReader){
-        buffer = await res.text();
-        setStreamPct(95);
-      } else {
-        const reader=res.body.getReader();
-        const decoder=new TextDecoder();
-        const EXPECTED_CHARS=2600; // typical full recipe length — drives progress bar
-        while(true){
-          const {done,value}=await reader.read();
-          if(done) break;
-          buffer+=decoder.decode(value,{stream:true});
-          // Live-extract the recipe name the moment the AI writes it
-          const nameMatch=buffer.match(/"recipe_name"\s*:\s*"([^"]*)"/);
-          if(nameMatch&&nameMatch[1]) setStreamName(nameMatch[1]);
-          // Progress from real bytes received (capped at 95% until parse succeeds)
-          setStreamPct(Math.min(Math.round((buffer.length/EXPECTED_CHARS)*100),95));
+        if(IS_NATIVE){
+          // Native app: route through Capacitor's native HTTP layer. The
+          // Android WebView's own fetch() is unreliable for external POSTs
+          // (this is the "failed to fetch" cause) — CapacitorHttp makes the
+          // request in native code and returns the full body at once.
+          const { CapacitorHttp } = window.Capacitor.Plugins;
+          const resp = await CapacitorHttp.post({
+            url: "https://spicesight.vercel.app/api/generate",
+            headers: { "Content-Type": "application/json" },
+            data: { prompt },
+            readTimeout: 60000,
+            connectTimeout: 60000,
+          });
+          clearTimeout(timeout);
+          if(resp.status<200||resp.status>=300){
+            const errMsg = (typeof resp.data==="object" && resp.data?.error) || `Request failed (${resp.status})`;
+            throw new Error(errMsg);
+          }
+          buffer = typeof resp.data==="string" ? resp.data : JSON.stringify(resp.data);
+          setStreamPct(95);
+        } else {
+          // Browser: same-origin fetch with live streaming for the progress bar.
+          res=await fetch("/api/generate",{
+            method:"POST",
+            headers:{"Content-Type":"application/json"},
+            body:JSON.stringify({prompt}),
+            signal:controller.signal,
+          });
+          clearTimeout(timeout);
+          if(!res.ok){
+            const data=await res.json().catch(()=>({}));
+            throw new Error(data?.error||`Request failed (${res.status})`);
+          }
+          const reader=res.body?.getReader();
+          if(!reader){
+            buffer = await res.text();
+            setStreamPct(95);
+          } else {
+            const decoder=new TextDecoder();
+            const EXPECTED_CHARS=2600;
+            while(true){
+              const {done,value}=await reader.read();
+              if(done) break;
+              buffer+=decoder.decode(value,{stream:true});
+              const nameMatch=buffer.match(/"recipe_name"\s*:\s*"([^"]*)"/);
+              if(nameMatch&&nameMatch[1]) setStreamName(nameMatch[1]);
+              setStreamPct(Math.min(Math.round((buffer.length/EXPECTED_CHARS)*100),95));
+            }
+          }
         }
-      }
+      } finally { clearTimeout(timeout); }
 
       // Extract the recipe JSON. Greedy match first; if that fails (extra text
       // around the JSON), fall back to a balanced-brace scan for the first
